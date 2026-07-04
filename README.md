@@ -109,3 +109,13 @@ npm start
 * **Default Login PIN**: `8989` (Required to access the dashboard and logger form).
 * **Changing the PIN**: Go to the PC Dashboard, click the **🔑 Change PIN** button in the header, enter the current PIN, and set a new one. The server will automatically hash and update the configuration.
 * **Auto-Logout**: Sessions automatically expire and lock after **10 minutes** of user inactivity.
+
+---
+
+## 📸 Screen Previews
+
+### 1. 📊 PC Dashboard Manager (Analytics & Activity Feed)
+![PC Dashboard Interface](screenshots/dashboard_view.png)
+
+### 2. 📱 Mobile Logger Client (Speech Localization & PWA Form)
+![Mobile Logger Interface](screenshots/mobile_view.png)
