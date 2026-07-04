@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reports & Issues - PC Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    /* Additional inline stylesheet overrides for dashboard-specific sizing */
+    body {
+      padding: 1rem 0;
+    }
+    .tunnel-badge {
+      background: rgba(99, 102, 241, 0.1);
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      padding: 0.5rem 1rem;
+      border-radius: var(--radius-md);
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .tunnel-link {
+      color: #818cf8;
+      text-decoration: none;
+      font-weight: 500;
+    }
+    .tunnel-link:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Passcode Login Overlay -->
+    <div id="passcodeOverlay" class="success-overlay" style="opacity: 1; pointer-events: auto; position: fixed;">
+      <div class="logo-icon" style="margin-bottom: 1.5rem; font-size: 2rem; width: 60px; height: 60px;">🔒</div>
+      <h2>Dashboard Access</h2>
+      <p>Enter the Security PIN to access the Call Reports Dashboard.</p>
+      
+      <div class="form-group" style="width: 100%; max-width: 280px; margin-bottom: 1rem; flex-direction: row; justify-content: center;">
+        <input type="password" id="passcodeInput" placeholder="••••" style="text-align: center; font-size: 1.5rem; letter-spacing: 0.25em; padding: 0.75rem;" maxlength="8">
+      </div>
+      
+      <button type="button" id="verifyPasscodeBtn" class="btn btn-primary" style="width: 100%; max-width: 280px; margin-top: 0.5rem;">
+        Verify PIN
+      </button>
+      <div id="passcodeError" style="color: var(--status-noanswer); font-size: 0.85rem; margin-top: 0.75rem; font-weight: 500; display: none;">
+        ❌ Invalid Security PIN! Try again.
+      </div>
+    </div>
+
+    <!-- Theme Switcher -->
+    <div class="theme-switch-wrapper">
+      <button id="themeToggleBtn" class="theme-toggle-btn">
+        <span id="themeToggleIcon">🌙</span> <span id="themeToggleText">Dark Mode</span>
+      </button>
+    </div>
+
+    <!-- Dashboard Header -->
+    <div class="dashboard-header">
+      <div class="dashboard-logo">
+        <div class="logo-icon">📊</div>
+        <div>
+          <h1>Reports & Issues Dashboard</h1>
+          <p class="subtitle" style="margin: 0;">PC database manager & analytics</p>
+        </div>
+      </div>
+      
+      <!-- Tunnel Status Indicator -->
+      <div id="tunnelStatus" class="tunnel-badge">
+        <span class="dot" style="background: var(--text-muted); width: 8px; height: 8px;"></span>
+        <span>Detecting global tunnel...</span>
+      </div>
+
+      <div class="header-actions">
+        <button id="changePinBtn" class="btn btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.85rem;">
+          🔑 Change PIN
+        </button>
+        <button id="refreshBtn" class="btn btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.85rem;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path><path d="M16 3h5v5"></path><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path><path d="M8 21H3v-5"></path></svg>
+          Refresh
+        </button>
+        <button id="exportCsvBtn" class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 0.85rem; margin-top: 0;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          Export CSV (Excel)
+        </button>
+      </div>
+    </div>
+
+    <!-- KPI Summary Grid -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <span class="stat-label">Total Reports</span>
+        <span id="statTotalCalls" class="stat-value">0</span>
+        <span class="stat-desc">Total issues logged to database</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Resolved Rate</span>
+        <span id="statAnswerRate" class="stat-value">0%</span>
+        <span class="stat-desc">Percentage of resolved issues</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Resolved Issues</span>
+        <span id="statTotalDuration" class="stat-value">0</span>
+        <span class="stat-desc">Issues successfully resolved</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Pending / In Progress</span>
+        <span id="statAvgDuration" class="stat-value">0</span>
+        <span class="stat-desc">Active issues needing action</span>
+      </div>
+    </div>
+
+    <!-- Analytics Charts Section -->
+    <div class="charts-section">
+      <div class="chart-card">
+        <h3>Issues by Department</h3>
+        <div class="chart-container">
+          <canvas id="deptChart"></canvas>
+        </div>
+      </div>
+      <div class="chart-card">
+        <h3>Issue Status Distribution</h3>
+        <div class="chart-container">
+          <canvas id="statusChart"></canvas>
+        </div>
+      </div>
+      <!-- Recent Activity Timeline -->
+      <div class="chart-card" style="max-height: 300px; display: flex; flex-direction: column;">
+        <h3>Recent Activity Feed</h3>
+        <div id="activityTimeline" class="timeline-list" style="flex: 1; overflow-y: auto; padding-right: 0.25rem;">
+          <p style="color: var(--text-muted); font-size: 0.85rem; text-align: center; margin-top: 2rem;">No recent activities.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Interactive Filters Panel -->
+    <div class="filters-panel">
+      <!-- Search Input -->
+      <div class="filter-group" style="flex-grow: 2;">
+        <label for="searchFilter" style="display: none;">Search</label>
+        <input type="text" id="searchFilter" placeholder="Search user, department, problems, actions, remarks...">
+      </div>
+
+      <!-- Status Filter -->
+      <div class="filter-group">
+        <label for="statusFilter">Status</label>
+        <select id="statusFilter">
+          <option value="ALL">All Statuses</option>
+          <option value="Pending">Pending</option>
+          <option value="In Progress">In Progress</option>
+          <option value="Resolved">Resolved</option>
+        </select>
+      </div>
+
+      <!-- Date Filter -->
+      <div class="filter-group">
+        <label for="dateFilter">Timeframe</label>
+        <select id="dateFilter">
+          <option value="ALL">All Time</option>
+          <option value="TODAY">Today</option>
+          <option value="YESTERDAY">Yesterday</option>
+          <option value="WEEK">Last 7 Days</option>
+          <option value="MONTH">Last 30 Days</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Reports Table -->
+    <div class="table-container">
+      <table id="reportsTable">
+        <thead>
+          <tr>
+            <th style="width: 160px;">Date</th>
+            <th>User</th>
+            <th>Department</th>
+            <th style="width: 130px;">Status</th>
+            <th style="width: 130px;">Resolve Date</th>
+            <th style="width: 100px; text-align: center;">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="reportsTableBody">
+          <!-- Populated dynamically via JS -->
+          <tr>
+            <td colspan="6" class="no-data-msg">Loading call records...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <!-- Edit Report Modal -->
+    <div id="editModal" class="modal-overlay">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3>Edit Report Details</h3>
+          <button id="closeModalBtn" class="close-modal-btn">&times;</button>
+        </div>
+        <form id="editForm">
+          <input type="hidden" id="editReportId">
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label for="editDateTime">Date *</label>
+              <input type="datetime-local" id="editDateTime" required>
+            </div>
+            <div class="form-group">
+              <label for="editUser">User *</label>
+              <input type="text" id="editUser" required>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="editDepartment">Department *</label>
+              <select id="editDepartment" required>
+                <option value="Design">Design</option>
+                <option value="Electrical Design">Electrical Design</option>
+                <option value="Account">Account</option>
+                <option value="QC">QC</option>
+                <option value="Store">Store</option>
+                <option value="Marketing">Marketing</option>
+                <option value="Service">Service</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="editStatus">Status *</label>
+              <select id="editStatus" required>
+                <option value="Pending">Pending</option>
+                <option value="In Progress">In Progress</option>
+                <option value="Resolved">Resolved</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group" id="editResolveDateGroup" style="display: none;">
+            <label for="editResolveDate">Resolve Date</label>
+            <input type="date" id="editResolveDate">
+          </div>
+
+          <div class="form-group">
+            <label for="editProblems">Problems *</label>
+            <textarea id="editProblems" rows="3" required></textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="editAction">Action Taken / Planned</label>
+            <textarea id="editAction" rows="2"></textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="editRemarks">Remarks</label>
+            <textarea id="editRemarks" rows="2"></textarea>
+          </div>
+
+          <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+            <button type="button" id="cancelEditBtn" class="btn btn-secondary" style="flex: 1; padding: 0.75rem;">Cancel</button>
+            <button type="submit" class="btn btn-primary" style="flex: 2; padding: 0.75rem; margin-top: 0;">Save Changes</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Change PIN Modal -->
+    <div id="pinModal" class="modal-overlay">
+      <div class="modal-card" style="max-width: 400px;">
+        <div class="modal-header">
+          <h3>Update Security PIN</h3>
+          <button id="closePinModalBtn" class="close-modal-btn">&times;</button>
+        </div>
+        <form id="pinForm">
+          <div class="form-group">
+            <label for="currentPinInput">Current PIN *</label>
+            <input type="password" id="currentPinInput" placeholder="••••" required style="text-align: center; font-size: 1.25rem;">
+          </div>
+          <div class="form-group">
+            <label for="newPinInput">New PIN *</label>
+            <input type="password" id="newPinInput" placeholder="••••" required style="text-align: center; font-size: 1.25rem;" minlength="4" maxlength="8">
+          </div>
+          <div class="form-group">
+            <label for="confirmPinInput">Confirm New PIN *</label>
+            <input type="password" id="confirmPinInput" placeholder="••••" required style="text-align: center; font-size: 1.25rem;" minlength="4" maxlength="8">
+          </div>
+          
+          <div id="pinError" style="color: var(--status-noanswer); font-size: 0.85rem; margin-bottom: 1rem; font-weight: 500; display: none; text-align: center;">
+            ❌ Error message here
+          </div>
+
+          <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+            <button type="button" id="cancelPinBtn" class="btn btn-secondary" style="flex: 1; padding: 0.75rem;">Cancel</button>
+            <button type="submit" class="btn btn-primary" style="flex: 2; padding: 0.75rem; margin-top: 0;">Update PIN</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="dashboard.js"></script>
+</body>
+</html>

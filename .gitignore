@@ -1,0 +1,9 @@
+node_modules/
+data/reports.json
+data/reports.csv
+data/backups/
+data/security_config.json
+data/ngrok_config.json
+public/tunnel_info.txt
+.DS_Store
+*.log
