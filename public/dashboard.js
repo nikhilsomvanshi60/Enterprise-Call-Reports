@@ -204,7 +204,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (url) {
           tunnelStatusEl.innerHTML = `
             <span class="dot connected" style="width: 8px; height: 8px;"></span>
-            <span>Global: <a href="${url}" target="_blank" class="tunnel-link">${url}</a> (Passcode-free)</span>
+            <span>Global: <a href="${url}" target="_blank" class="tunnel-link">${url}</a> </span>
           `;
           return;
         }
@@ -791,6 +791,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Fetch reports from PC backend API
   async function fetchReports() {
+    await fetchDepartments();
+
     try {
       const response = await fetch('/api/reports', {
         headers: {

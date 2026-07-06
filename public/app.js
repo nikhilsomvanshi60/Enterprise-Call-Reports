@@ -53,6 +53,23 @@ document.addEventListener('DOMContentLoaded', () => {
   const newDepartmentInput = document.getElementById('newDepartmentInput');
   const saveNewDepartmentBtn = document.getElementById('saveNewDepartmentBtn');
 
+  // Forgot Passcode Elements
+  const forgotPasscodeBtn = document.getElementById('forgotPasscodeBtn');
+  const forgotPinModal = document.getElementById('forgotPinModal');
+  const closeForgotPinModalBtn = document.getElementById('closeForgotPinModalBtn');
+  const confirmForgotPinBtn = document.getElementById('confirmForgotPinBtn');
+
+  // Change Passcode Modal Elements
+  const mobileChangePinBtn = document.getElementById('mobileChangePinBtn');
+  const mobileChangePinModal = document.getElementById('mobileChangePinModal');
+  const closeMobileChangePinModalBtn = document.getElementById('closeMobileChangePinModalBtn');
+  const cancelMobileChangePinBtn = document.getElementById('cancelMobileChangePinBtn');
+  const mobilePinForm = document.getElementById('mobilePinForm');
+  const mobileCurrentPin = document.getElementById('mobileCurrentPin');
+  const mobileNewPin = document.getElementById('mobileNewPin');
+  const mobileConfirmPin = document.getElementById('mobileConfirmPin');
+  const mobilePinError = document.getElementById('mobilePinError');
+
   let editingReportId = null;
   let activeReportsData = [];
   let departmentsData = [];
@@ -711,6 +728,83 @@ document.addEventListener('DOMContentLoaded', () => {
 
   cancelEditFormBtn.addEventListener('click', cancelEditing);
   refreshActiveBtn.addEventListener('click', fetchActiveReports);
+
+  // Forgot PIN Listeners
+  forgotPasscodeBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    forgotPinModal.style.display = 'flex';
+  });
+  closeForgotPinModalBtn.addEventListener('click', () => {
+    forgotPinModal.style.display = 'none';
+  });
+  confirmForgotPinBtn.addEventListener('click', () => {
+    forgotPinModal.style.display = 'none';
+  });
+  forgotPinModal.addEventListener('click', (e) => {
+    if (e.target === forgotPinModal) forgotPinModal.style.display = 'none';
+  });
+
+  // Change PIN Listeners (Mobile View)
+  mobileChangePinBtn.addEventListener('click', () => {
+    mobileChangePinModal.style.display = 'flex';
+    mobileCurrentPin.focus();
+  });
+
+  function closeMobilePinModal() {
+    mobileChangePinModal.style.display = 'none';
+    mobilePinForm.reset();
+    mobilePinError.style.display = 'none';
+  }
+
+  closeMobileChangePinModalBtn.addEventListener('click', closeMobilePinModal);
+  cancelMobileChangePinBtn.addEventListener('click', closeMobilePinModal);
+  mobileChangePinModal.addEventListener('click', (e) => {
+    if (e.target === mobileChangePinModal) closeMobilePinModal();
+  });
+
+  mobilePinForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const currentPin = mobileCurrentPin.value;
+    const newPin = mobileNewPin.value;
+    const confirmPin = mobileConfirmPin.value;
+
+    mobilePinError.style.display = 'none';
+
+    if (newPin !== confirmPin) {
+      mobilePinError.textContent = '❌ New PIN and Confirm PIN do not match!';
+      mobilePinError.style.display = 'block';
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/security/update-pin', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Bypass-Tunnel-Reminder': 'true',
+          'X-Auth-Token': getAuthToken()
+        },
+        body: JSON.stringify({ currentPin, newPin })
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        localStorage.setItem('auth_pin', newPin); // Save new pin in browser
+        closeMobilePinModal();
+        showToastNotification('✅ Security PIN updated successfully!');
+        resetInactivityTimer();
+      } else {
+        mobilePinError.textContent = `❌ ${result.error || 'Failed to update PIN.'}`;
+        mobilePinError.style.display = 'block';
+      }
+    } catch (err) {
+      console.error('Error updating PIN:', err);
+      mobilePinError.textContent = '❌ Network error. Could not reach server.';
+      mobilePinError.style.display = 'block';
+    }
+  });
 
   // Run Auth Check on startup
   initAuth();
