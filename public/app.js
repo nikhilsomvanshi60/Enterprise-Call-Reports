@@ -70,9 +70,24 @@ document.addEventListener('DOMContentLoaded', () => {
   const mobileConfirmPin = document.getElementById('mobileConfirmPin');
   const mobilePinError = document.getElementById('mobilePinError');
 
+  // Mobile Holiday Elements
+  const mobileHolidaysSection = document.getElementById('mobileHolidaysSection');
+  const mobileAddHolidayBtn = document.getElementById('mobileAddHolidayBtn');
+  const mobileHolidayForm = document.getElementById('mobileHolidayForm');
+  const mobileHolidayDate = document.getElementById('mobileHolidayDate');
+  const mobileHolidayType = document.getElementById('mobileHolidayType');
+  const mobileHolidayUserGroup = document.getElementById('mobileHolidayUserGroup');
+  const mobileHolidayUser = document.getElementById('mobileHolidayUser');
+  const mobileHolidayDesc = document.getElementById('mobileHolidayDesc');
+  const mobileHolidayError = document.getElementById('mobileHolidayError');
+  const cancelMobileHolidayBtn = document.getElementById('cancelMobileHolidayBtn');
+  const saveMobileHolidayBtn = document.getElementById('saveMobileHolidayBtn');
+  const mobileHolidaysList = document.getElementById('mobileHolidaysList');
+
   let editingReportId = null;
   let activeReportsData = [];
   let departmentsData = [];
+  let mobileHolidaysData = [];
 
   // Global Auth PIN storage helper
   function getAuthToken() {
@@ -134,6 +149,7 @@ document.addEventListener('DOMContentLoaded', () => {
         resetInactivityTimer(); // Start inactivity clock
         fetchActiveReports(); // Load reports list!
         fetchDepartments(); // Load departments!
+        fetchMobileHolidays(); // Load holidays!
       } else {
         localStorage.removeItem('auth_pin');
         showPasscodePrompt();
@@ -170,6 +186,7 @@ document.addEventListener('DOMContentLoaded', () => {
       resetInactivityTimer(); // Start timer
       fetchActiveReports(); // Load reports list!
       fetchDepartments(); // Load departments!
+      fetchMobileHolidays(); // Load holidays!
     } else {
       passcodeError.textContent = '❌ Invalid Security PIN! Try again.';
       passcodeError.style.display = 'block';
@@ -810,6 +827,163 @@ document.addEventListener('DOMContentLoaded', () => {
       console.error('Error updating PIN:', err);
       mobilePinError.textContent = '❌ Network error. Could not reach server.';
       mobilePinError.style.display = 'block';
+    }
+  });
+
+  // Mobile Holidays & Leaves Logic
+  // =========================================================================
+  async function fetchMobileHolidays() {
+    const token = getAuthToken();
+    if (!token) return;
+    try {
+      const response = await fetch('/api/holidays', {
+        headers: { 'Bypass-Tunnel-Reminder': 'true', 'X-Auth-Token': token }
+      });
+      if (response.ok) {
+        mobileHolidaysData = await response.json();
+        renderMobileHolidays();
+      }
+    } catch (err) {
+      if (mobileHolidaysList) {
+        mobileHolidaysList.innerHTML = '<p style="color:var(--text-muted);font-size:0.82rem;text-align:center;margin:1rem 0;">Unable to load holidays (offline?).</p>';
+      }
+    }
+  }
+
+  function renderMobileHolidays() {
+    if (!mobileHolidaysList) return;
+    if (mobileHolidaysData.length === 0) {
+      mobileHolidaysList.innerHTML = '<p style="color:var(--text-muted);font-size:0.85rem;text-align:center;margin:1rem 0;">Koi chuti declare nahi ki gayi hai.</p>';
+      return;
+    }
+
+    const sorted = [...mobileHolidaysData].sort((a, b) => new Date(b.date) - new Date(a.date));
+    mobileHolidaysList.innerHTML = '';
+
+    sorted.forEach(h => {
+      const card = document.createElement('div');
+      card.style.cssText = 'background:rgba(245,158,11,0.07);border:1px solid rgba(245,158,11,0.25);border-radius:10px;padding:0.75rem 1rem;display:flex;flex-direction:column;gap:0.3rem;position:relative;';
+
+      const typeColor = h.type === 'Personal Leave' ? '#ef4444' : h.type === 'Festival Holiday' ? '#f59e0b' : '#6366f1';
+      const typeIcon = h.type === 'Personal Leave' ? '🏥' : h.type === 'Festival Holiday' ? '🎉' : '🏢';
+
+      card.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:0.5rem;">
+          <div>
+            <div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:0.15rem;">📅 ${h.date}</div>
+            <div style="font-size:0.92rem;font-weight:600;color:var(--text-primary);">${h.description}</div>
+            <div style="display:flex;gap:0.5rem;align-items:center;margin-top:0.35rem;flex-wrap:wrap;">
+              <span style="font-size:0.75rem;font-weight:600;padding:0.1rem 0.45rem;border-radius:20px;background:${typeColor}22;color:${typeColor};border:1px solid ${typeColor}44;">${typeIcon} ${h.type}</span>
+              <span style="font-size:0.78rem;color:var(--text-muted);">${h.user === 'All' ? '👥 All Staff' : '👤 ' + h.user}</span>
+            </div>
+          </div>
+          <button data-id="${h.id}" class="mob-del-holiday" title="Delete" style="background:none;border:none;cursor:pointer;font-size:1.1rem;color:var(--text-muted);flex-shrink:0;padding:0.2rem;">🗑️</button>
+        </div>
+      `;
+      mobileHolidaysList.appendChild(card);
+    });
+
+    mobileHolidaysList.querySelectorAll('.mob-del-holiday').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-id');
+        if (confirm('Is chuti ko delete karna chahte hain?')) {
+          await deleteMobileHoliday(id);
+        }
+      });
+    });
+  }
+
+  async function deleteMobileHoliday(id) {
+    const token = getAuthToken();
+    if (!token) return;
+    try {
+      const response = await fetch(`/api/holidays/${id}`, {
+        method: 'DELETE',
+        headers: { 'Bypass-Tunnel-Reminder': 'true', 'X-Auth-Token': token }
+      });
+      if (response.ok) {
+        await fetchMobileHolidays();
+        showToastNotification('🗑️ Holiday/leave deleted.');
+      } else {
+        const err = await response.json();
+        showToastNotification('❌ ' + (err.error || 'Delete failed.'));
+      }
+    } catch (err) {
+      showToastNotification('❌ Network error. Delete failed.');
+    }
+  }
+
+  // Toggle add-holiday form
+  mobileAddHolidayBtn.addEventListener('click', () => {
+    const isVisible = mobileHolidayForm.style.display === 'flex';
+    mobileHolidayForm.style.display = isVisible ? 'none' : 'flex';
+    if (!isVisible) {
+      // Set today's date as default
+      const today = new Date().toISOString().slice(0, 10);
+      mobileHolidayDate.value = today;
+      mobileHolidayError.style.display = 'none';
+    }
+  });
+
+  cancelMobileHolidayBtn.addEventListener('click', () => {
+    mobileHolidayForm.style.display = 'none';
+    mobileHolidayError.style.display = 'none';
+  });
+
+  mobileHolidayType.addEventListener('change', () => {
+    if (mobileHolidayType.value === 'Personal Leave') {
+      mobileHolidayUserGroup.style.display = 'flex';
+    } else {
+      mobileHolidayUserGroup.style.display = 'none';
+      mobileHolidayUser.value = '';
+    }
+  });
+
+  saveMobileHolidayBtn.addEventListener('click', async () => {
+    const date = mobileHolidayDate.value;
+    const type = mobileHolidayType.value;
+    const user = mobileHolidayUser.value.trim() || 'All';
+    const description = mobileHolidayDesc.value.trim();
+
+    if (!date || !description) {
+      mobileHolidayError.textContent = '❌ Date aur Reason zaroor bharein.';
+      mobileHolidayError.style.display = 'block';
+      return;
+    }
+
+    saveMobileHolidayBtn.disabled = true;
+    saveMobileHolidayBtn.textContent = 'Saving...';
+
+    try {
+      const response = await fetch('/api/holidays', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Bypass-Tunnel-Reminder': 'true',
+          'X-Auth-Token': getAuthToken()
+        },
+        body: JSON.stringify({ date, type, user, description })
+      });
+
+      const result = await response.json();
+      if (response.ok) {
+        mobileHolidayForm.style.display = 'none';
+        mobileHolidayDate.value = '';
+        mobileHolidayDesc.value = '';
+        mobileHolidayUser.value = '';
+        mobileHolidayError.style.display = 'none';
+        await fetchMobileHolidays();
+        showToastNotification('✅ Holiday/Leave saved!');
+      } else {
+        mobileHolidayError.textContent = '❌ ' + (result.error || 'Server error.');
+        mobileHolidayError.style.display = 'block';
+      }
+    } catch (err) {
+      mobileHolidayError.textContent = '❌ Network error. Please try again.';
+      mobileHolidayError.style.display = 'block';
+    } finally {
+      saveMobileHolidayBtn.disabled = false;
+      saveMobileHolidayBtn.textContent = 'Save Holiday';
     }
   });
 
