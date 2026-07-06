@@ -41,6 +41,16 @@ document.addEventListener('DOMContentLoaded', () => {
   const newLogBtn = document.getElementById('newLogBtn');
   const submitBtn = document.getElementById('submitBtn');
 
+  // Edit & Active Reports Elements
+  const editModeBanner = document.getElementById('editModeBanner');
+  const editModeUser = document.getElementById('editModeUser');
+  const cancelEditFormBtn = document.getElementById('cancelEditFormBtn');
+  const refreshActiveBtn = document.getElementById('refreshActiveBtn');
+  const activeReportsList = document.getElementById('activeReportsList');
+
+  let editingReportId = null;
+  let activeReportsData = [];
+
   // Global Auth PIN storage helper
   function getAuthToken() {
     return localStorage.getItem('auth_pin') || '';
@@ -99,6 +109,7 @@ document.addEventListener('DOMContentLoaded', () => {
         passcodeOverlay.style.pointerEvents = 'none';
         updateOnlineStatus();
         resetInactivityTimer(); // Start inactivity clock
+        fetchActiveReports(); // Load reports list!
       } else {
         localStorage.removeItem('auth_pin');
         showPasscodePrompt();
@@ -133,6 +144,7 @@ document.addEventListener('DOMContentLoaded', () => {
       passcodeOverlay.style.pointerEvents = 'none';
       updateOnlineStatus();
       resetInactivityTimer(); // Start timer
+      fetchActiveReports(); // Load reports list!
     } else {
       passcodeError.textContent = '❌ Invalid Security PIN! Try again.';
       passcodeError.style.display = 'block';
@@ -268,6 +280,149 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // Active Reports Functions
+  async function fetchActiveReports() {
+    const token = getAuthToken();
+    if (!token) return;
+
+    try {
+      const response = await fetch('/api/reports', {
+        headers: {
+          'Bypass-Tunnel-Reminder': 'true',
+          'X-Auth-Token': token
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        activeReportsData = data.filter(r => r.status === 'Pending' || r.status === 'In Progress');
+        renderActiveReportsList();
+      }
+    } catch (err) {
+      console.error('Error fetching active reports:', err);
+    }
+  }
+
+  function renderActiveReportsList() {
+    if (!activeReportsList) return;
+
+    if (activeReportsData.length === 0) {
+      activeReportsList.innerHTML = `
+        <p style="color: var(--text-muted); font-size: 0.85rem; text-align: center; margin: 1rem 0;">No active/pending reports found.</p>
+      `;
+      return;
+    }
+
+    activeReportsList.innerHTML = '';
+    activeReportsData.forEach(item => {
+      const itemEl = document.createElement('div');
+      itemEl.className = 'active-report-item';
+      itemEl.style.cssText = 'background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-color); padding: 0.75rem; border-radius: var(--radius-sm); display: flex; justify-content: space-between; align-items: center; gap: 0.5rem;';
+      
+      const itemStatusClass = item.status === 'In Progress' ? 'busy' : 'no-answer';
+      
+      itemEl.innerHTML = `
+        <div style="flex: 1; min-width: 0;">
+          <div style="display: flex; gap: 0.5rem; align-items: center; font-size: 0.72rem; color: var(--text-secondary); margin-bottom: 0.25rem;">
+            <span class="dot ${itemStatusClass}" style="width: 8px; height: 8px;"></span>
+            <strong style="color: var(--text-primary);">${escapeHTML(item.user)}</strong>
+            <span>•</span>
+            <span>${item.department}</span>
+            <span>•</span>
+            <span>${new Date(item.dateTime).toLocaleDateString()}</span>
+          </div>
+          <div style="font-size: 0.8rem; font-weight: 500; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+            ${escapeHTML(item.problems)}
+          </div>
+        </div>
+        <button type="button" class="btn btn-secondary edit-active-btn" data-id="${item.id}" style="padding: 0.35rem 0.65rem; font-size: 0.75rem; flex-shrink: 0; margin-top: 0; border-radius: 6px;">
+          ✏️ Edit
+        </button>
+      `;
+      activeReportsList.appendChild(itemEl);
+    });
+
+    activeReportsList.querySelectorAll('.edit-active-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-id');
+        const report = activeReportsData.find(r => r.id === id);
+        if (report) {
+          startEditing(report);
+        }
+      });
+    });
+  }
+
+  function startEditing(report) {
+    editingReportId = report.id;
+
+    dateTimeInput.value = report.dateTime ? report.dateTime.slice(0, 16) : '';
+    userInput.value = report.user || '';
+    departmentInput.value = report.department || '';
+    problemsTextarea.value = report.problems || '';
+    actionTextarea.value = report.action || '';
+    remarksTextarea.value = report.remarks || '';
+    callStatusInput.value = report.status || 'Pending';
+    
+    if (report.resolveDate) {
+      resolveDateInput.value = report.resolveDate;
+    } else {
+      resolveDateInput.value = '';
+    }
+
+    statusGrid.querySelectorAll('.status-pill').forEach(p => {
+      p.classList.remove('active');
+      if (p.getAttribute('data-status') === report.status) {
+        p.classList.add('active');
+      }
+    });
+
+    if (report.status === 'Resolved') {
+      resolveDateGroup.style.display = 'block';
+    } else {
+      resolveDateGroup.style.display = 'none';
+    }
+
+    editModeUser.textContent = report.user;
+    editModeBanner.style.display = 'flex';
+    
+    submitBtn.innerHTML = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+      Update Report on PC
+    `;
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function cancelEditing() {
+    editingReportId = null;
+    editModeBanner.style.display = 'none';
+    callForm.reset();
+    
+    statusGrid.querySelectorAll('.status-pill').forEach(p => p.classList.remove('active'));
+    const defaultPill = statusGrid.querySelector('[data-status="Pending"]');
+    if (defaultPill) defaultPill.classList.add('active');
+    callStatusInput.value = 'Pending';
+    resolveDateGroup.style.display = 'none';
+    
+    setDefaultDateTime();
+    
+    submitBtn.innerHTML = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+      Send Report to PC
+    `;
+  }
+
+  function escapeHTML(str) {
+    if (!str) return '';
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
   // 6. Offline Queue & Synchronization
   function updateOnlineStatus() {
     if (navigator.onLine) {
@@ -291,9 +446,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  function queueReportOffline(reportData) {
+  function queueReportOffline(reportData, isUpdate = false, id = null) {
     const queue = getOfflineQueue();
-    queue.push(reportData);
+    if (isUpdate) {
+      queue.push({ action: 'update', id: id, data: reportData });
+    } else {
+      queue.push(reportData);
+    }
     localStorage.setItem('vash_reports_queue', JSON.stringify(queue));
   }
 
@@ -305,14 +464,19 @@ document.addEventListener('DOMContentLoaded', () => {
     
     for (const report of queue) {
       try {
-        const response = await fetch('/api/reports', {
-          method: 'POST',
+        const isUpdate = report.action === 'update';
+        const url = isUpdate ? `/api/reports/${report.id}` : '/api/reports';
+        const method = isUpdate ? 'PUT' : 'POST';
+        const bodyData = isUpdate ? report.data : report;
+
+        const response = await fetch(url, {
+          method: method,
           headers: {
             'Content-Type': 'application/json',
             'Bypass-Tunnel-Reminder': 'true',
             'X-Auth-Token': getAuthToken()
           },
-          body: JSON.stringify(report)
+          body: JSON.stringify(bodyData)
         });
 
         if (response.status === 401) {
@@ -332,6 +496,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     localStorage.setItem('vash_reports_queue', '[]');
     showToastNotification(`✅ ${queue.length} reports successfully synced to PC!`);
+    fetchActiveReports();
   }
 
   function showToastNotification(message) {
@@ -361,7 +526,7 @@ document.addEventListener('DOMContentLoaded', () => {
     e.preventDefault();
 
     submitBtn.disabled = true;
-    submitBtn.innerHTML = 'Sending...';
+    submitBtn.innerHTML = editingReportId ? 'Updating...' : 'Sending...';
 
     const data = {
       dateTime: dateTimeInput.value,
@@ -375,19 +540,22 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     if (!navigator.onLine) {
-      queueReportOffline(data);
+      queueReportOffline(data, !!editingReportId, editingReportId);
       submitBtn.disabled = false;
-      submitBtn.innerHTML = 'Send Report to PC';
+      submitBtn.innerHTML = editingReportId ? 'Update Report on PC' : 'Send Report to PC';
       
-      successOverlay.querySelector('h2').textContent = 'Saved Offline!';
-      successOverlay.querySelector('p').textContent = 'No internet connection. Your report has been saved locally and will auto-sync when online.';
+      successOverlay.querySelector('h2').textContent = editingReportId ? 'Update Saved Offline!' : 'Saved Offline!';
+      successOverlay.querySelector('p').textContent = 'No internet connection. Saved locally and will sync when connection is restored.';
       successOverlay.classList.add('show');
       return;
     }
 
     try {
-      const response = await fetch('/api/reports', {
-        method: 'POST',
+      const url = editingReportId ? `/api/reports/${editingReportId}` : '/api/reports';
+      const method = editingReportId ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method: method,
         headers: {
           'Content-Type': 'application/json',
           'Bypass-Tunnel-Reminder': 'true',
@@ -400,23 +568,32 @@ document.addEventListener('DOMContentLoaded', () => {
         localStorage.removeItem('auth_pin');
         showPasscodePrompt();
         submitBtn.disabled = false;
-        submitBtn.innerHTML = 'Send Report to PC';
+        submitBtn.innerHTML = editingReportId ? 'Update Report on PC' : 'Send Report to PC';
         return;
       }
 
       if (response.ok) {
-        successOverlay.querySelector('h2').textContent = 'Report Sent!';
-        successOverlay.querySelector('p').textContent = 'Your report has been successfully saved to your PC database.';
+        successOverlay.querySelector('h2').textContent = editingReportId ? 'Report Updated!' : 'Report Sent!';
+        successOverlay.querySelector('p').textContent = editingReportId 
+          ? 'Your report has been successfully updated on the PC database.'
+          : 'Your report has been successfully saved to your PC database.';
         successOverlay.classList.add('show');
-        resetInactivityTimer(); // Reset timeout on successful activity
+        
+        if (editingReportId) {
+          editingReportId = null;
+          editModeBanner.style.display = 'none';
+        }
+        
+        fetchActiveReports();
+        resetInactivityTimer();
       } else {
         const errorData = await response.json();
-        alert('Failed to send report: ' + (errorData.error || 'Server error'));
+        alert('Failed: ' + (errorData.error || 'Server error'));
       }
     } catch (err) {
       console.error('Network error, saving locally:', err);
-      queueReportOffline(data);
-      successOverlay.querySelector('h2').textContent = 'Saved Offline (Network Error)!';
+      queueReportOffline(data, !!editingReportId, editingReportId);
+      successOverlay.querySelector('h2').textContent = editingReportId ? 'Update Saved Offline!' : 'Saved Offline (Network Error)!';
       successOverlay.querySelector('p').textContent = 'Could not reach server. Saved locally and will sync when connection is restored.';
       successOverlay.classList.add('show');
     } finally {
@@ -430,17 +607,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 8. Reset Form
   newLogBtn.addEventListener('click', () => {
-    callForm.reset();
-    statusGrid.querySelectorAll('.status-pill').forEach(p => p.classList.remove('active'));
-    const defaultPill = statusGrid.querySelector('[data-status="Pending"]');
-    if (defaultPill) defaultPill.classList.add('active');
-    callStatusInput.value = 'Pending';
-    resolveDateGroup.style.display = 'none';
-    
-    setDefaultDateTime();
+    cancelEditing();
     successOverlay.classList.remove('show');
     resetInactivityTimer();
   });
+
+  cancelEditFormBtn.addEventListener('click', cancelEditing);
+  refreshActiveBtn.addEventListener('click', fetchActiveReports);
 
   // Run Auth Check on startup
   initAuth();
