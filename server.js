@@ -6,6 +6,7 @@ const { spawn } = require('child_process');
 const localtunnel = require('localtunnel');
 const qrcode = require('qrcode-terminal');
 const crypto = require('crypto');
+const ExcelJS = require('exceljs');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -147,6 +148,131 @@ function createBackup() {
   }
 }
 
+// Write reports to styled native Excel spreadsheet on disk
+async function saveDiskExcel(reports) {
+  try {
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('All Call Reports');
+
+    worksheet.columns = [
+      { header: 'Date', key: 'dateTime', width: 18 },
+      { header: 'User', key: 'user', width: 22 },
+      { header: 'Department', key: 'department', width: 22 },
+      { header: 'Problems', key: 'problems', width: 45 },
+      { header: 'Action', key: 'action', width: 45 },
+      { header: 'Status', key: 'status', width: 15 },
+      { header: 'Resolve Date', key: 'resolveDate', width: 18 },
+      { header: 'Remarks', key: 'remarks', width: 30 }
+    ];
+
+    reports.forEach(r => {
+      worksheet.addRow({
+        dateTime: r.dateTime || '',
+        user: r.user || '',
+        department: r.department || '',
+        problems: r.problems || '',
+        action: r.action || '',
+        status: r.status || '',
+        resolveDate: r.resolveDate || '',
+        remarks: r.remarks || ''
+      });
+    });
+
+    worksheet.views = [{ showGridLines: true }];
+    worksheet.getRow(1).height = 28;
+
+    // Header Style
+    const headerRow = worksheet.getRow(1);
+    headerRow.eachCell(cell => {
+      cell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FF4F46E5' } // Indigo color
+      };
+      cell.font = {
+        name: 'Segoe UI',
+        size: 11,
+        bold: true,
+        color: { argb: 'FFFFFFFF' }
+      };
+      cell.alignment = { vertical: 'middle', horizontal: 'center' };
+      cell.border = {
+        top: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+        left: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+        bottom: { style: 'medium', color: { argb: 'FF94A3B8' } },
+        right: { style: 'thin', color: { argb: 'FFCBD5E1' } }
+      };
+    });
+
+    // Data Style
+    worksheet.eachRow((row, rowNumber) => {
+      if (rowNumber === 1) return;
+      row.height = 24;
+
+      row.eachCell((cell, colNumber) => {
+        cell.font = { name: 'Segoe UI', size: 10 };
+        cell.alignment = { vertical: 'middle' };
+
+        // Zebra striping
+        if (rowNumber % 2 === 0) {
+          cell.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FFF8FAFC' }
+          };
+        }
+
+        cell.border = {
+          top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+          left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+          bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+          right: { style: 'thin', color: { argb: 'FFE2E8F0' } }
+        };
+
+        const key = worksheet.columns[colNumber - 1].key;
+        if (key === 'dateTime' || key === 'status' || key === 'resolveDate') {
+          cell.alignment = { vertical: 'middle', horizontal: 'center' };
+        } else {
+          cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+        }
+
+        if (key === 'status') {
+          const statusVal = String(cell.value).toLowerCase();
+          cell.font = { name: 'Segoe UI', size: 10, bold: true };
+          if (statusVal === 'resolved') {
+            cell.fill = {
+              type: 'pattern',
+              pattern: 'solid',
+              fgColor: { argb: 'FFD1FAE5' }
+            };
+            cell.font.color = { argb: 'FF065F46' };
+          } else if (statusVal === 'in progress') {
+            cell.fill = {
+              type: 'pattern',
+              pattern: 'solid',
+              fgColor: { argb: 'FFFEF3C7' }
+            };
+            cell.font.color = { argb: 'FF92400E' };
+          } else {
+            cell.fill = {
+              type: 'pattern',
+              pattern: 'solid',
+              fgColor: { argb: 'FFFEE2E2' }
+            };
+            cell.font.color = { argb: 'FF991B1B' };
+          }
+        }
+      });
+    });
+
+    const filePath = path.join(DATA_DIR, 'reports.xlsx');
+    await workbook.xlsx.writeFile(filePath);
+    console.log('📈 Styled reports.xlsx saved successfully.');
+  } catch (err) {
+    console.error('⚠️ Failed to save Excel reports to disk:', err);
+  }
+}
+
 // Write reports to JSON and CSV files
 function saveReport(report) {
   const reports = readReports();
@@ -177,6 +303,8 @@ function saveReport(report) {
   
   csvLine += csvRow.map(escapeCSV).join(',') + '\n';
   fs.appendFileSync(CSV_FILE, csvLine, 'utf8');
+  
+  saveDiskExcel(reports);
   createBackup();
 }
 
@@ -295,6 +423,7 @@ app.delete('/api/reports/:id', (req, res) => {
     });
     
     fs.writeFileSync(CSV_FILE, csvContent, 'utf8');
+    saveDiskExcel(updatedReports);
     createBackup();
     res.json({ success: true, message: 'Report deleted.' });
   } catch (err) {
@@ -356,11 +485,150 @@ app.put('/api/reports/:id', (req, res) => {
     });
     
     fs.writeFileSync(CSV_FILE, csvContent, 'utf8');
+    saveDiskExcel(reports);
     createBackup();
     res.json({ success: true, message: 'Report updated.', report: reports[reportIndex] });
   } catch (err) {
     console.error('Error updating report:', err);
     res.status(500).json({ error: 'Failed to update report.' });
+  }
+});
+
+// API: Export filtered reports to styled Excel
+app.post('/api/reports/export', async (req, res) => {
+  try {
+    const { filteredReports } = req.body;
+    if (!Array.isArray(filteredReports)) {
+      return res.status(400).json({ error: 'Invalid reports list.' });
+    }
+    
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Filtered Call Reports');
+    
+    worksheet.columns = [
+      { header: 'Date', key: 'dateTime', width: 18 },
+      { header: 'User', key: 'user', width: 22 },
+      { header: 'Department', key: 'department', width: 22 },
+      { header: 'Problems', key: 'problems', width: 45 },
+      { header: 'Action', key: 'action', width: 45 },
+      { header: 'Status', key: 'status', width: 15 },
+      { header: 'Resolve Date', key: 'resolveDate', width: 18 },
+      { header: 'Remarks', key: 'remarks', width: 30 }
+    ];
+    
+    filteredReports.forEach(r => {
+      worksheet.addRow({
+        dateTime: r.dateTime || '',
+        user: r.user || '',
+        department: r.department || '',
+        problems: r.problems || '',
+        action: r.action || '',
+        status: r.status || '',
+        resolveDate: r.resolveDate || '',
+        remarks: r.remarks || ''
+      });
+    });
+    
+    worksheet.views = [{ showGridLines: true }];
+    worksheet.getRow(1).height = 28;
+    
+    // Header Style
+    const headerRow = worksheet.getRow(1);
+    headerRow.eachCell(cell => {
+      cell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FF4F46E5' }
+      };
+      cell.font = {
+        name: 'Segoe UI',
+        size: 11,
+        bold: true,
+        color: { argb: 'FFFFFFFF' }
+      };
+      cell.alignment = { vertical: 'middle', horizontal: 'center' };
+      cell.border = {
+        top: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+        left: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+        bottom: { style: 'medium', color: { argb: 'FF94A3B8' } },
+        right: { style: 'thin', color: { argb: 'FFCBD5E1' } }
+      };
+    });
+    
+    // Data Style
+    worksheet.eachRow((row, rowNumber) => {
+      if (rowNumber === 1) return;
+      row.height = 24;
+      
+      row.eachCell((cell, colNumber) => {
+        cell.font = { name: 'Segoe UI', size: 10 };
+        cell.alignment = { vertical: 'middle' };
+        
+        if (rowNumber % 2 === 0) {
+          cell.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FFF8FAFC' }
+          };
+        }
+        
+        cell.border = {
+          top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+          left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+          bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+          right: { style: 'thin', color: { argb: 'FFE2E8F0' } }
+        };
+        
+        const key = worksheet.columns[colNumber - 1].key;
+        if (key === 'dateTime' || key === 'status' || key === 'resolveDate') {
+          cell.alignment = { vertical: 'middle', horizontal: 'center' };
+        } else {
+          cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+        }
+        
+        if (key === 'status') {
+          const statusVal = String(cell.value).toLowerCase();
+          cell.font = { name: 'Segoe UI', size: 10, bold: true };
+          if (statusVal === 'resolved') {
+            cell.fill = {
+              type: 'pattern',
+              pattern: 'solid',
+              fgColor: { argb: 'FFD1FAE5' }
+            };
+            cell.font.color = { argb: 'FF065F46' };
+          } else if (statusVal === 'in progress') {
+            cell.fill = {
+              type: 'pattern',
+              pattern: 'solid',
+              fgColor: { argb: 'FFFEF3C7' }
+            };
+            cell.font.color = { argb: 'FF92400E' };
+          } else {
+            cell.fill = {
+              type: 'pattern',
+              pattern: 'solid',
+              fgColor: { argb: 'FFFEE2E2' }
+            };
+            cell.font.color = { argb: 'FF991B1B' };
+          }
+        }
+      });
+    });
+    
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    );
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename=Call_Reports.xlsx'
+    );
+    
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (err) {
+    console.error('Error generating Excel file:', err);
+    res.status(500).json({ error: 'Failed to generate Excel file.' });
   }
 });
 
@@ -398,6 +666,9 @@ app.listen(PORT, () => {
   console.log(`\n💻 Local server is running at: http://localhost:${PORT}`);
   console.log(`📊 PC Dashboard accessible at: http://localhost:${PORT}/dashboard.html`);
   
+  // Create / verify styled Excel spreadsheet on startup
+  saveDiskExcel(readReports());
+
   startTunnel();
 });
 
@@ -460,7 +731,7 @@ async function startTunnel() {
 
   // 2. Try localtunnel for a fixed URL
   console.log('🔄 Attempting to connect via localtunnel...');
-  const SUBDOMAIN = 'vash-report-logger';
+  const SUBDOMAIN = 'NIK-report-logger';
   try {
     const tunnel = await localtunnel({ 
       port: PORT, 

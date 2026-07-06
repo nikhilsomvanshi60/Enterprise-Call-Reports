@@ -831,8 +831,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Export current filtered set as CSV
-  function exportCSV() {
+  // Export current filtered set as styled Excel
+  async function exportCSV() {
     const filtered = getFilteredReports();
 
     if (filtered.length === 0) {
@@ -840,49 +840,45 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    const headers = [
-      'Date', 'User', 'Department', 'Problems', 'Action', 'Status', 'ResolveDate', 'Remarks'
-    ];
+    exportCsvBtn.disabled = true;
+    exportCsvBtn.innerHTML = 'Generating...';
 
-    const csvRows = [headers.join(',')];
-
-    filtered.forEach(r => {
-      const rowValues = [
-        r.dateTime,
-        r.user,
-        r.department,
-        r.problems,
-        r.action,
-        r.status,
-        r.resolveDate,
-        r.remarks
-      ];
-
-      const escapedRow = rowValues.map(val => {
-        let str = String(val === null || val === undefined ? '' : val);
-        str = str.replace(/"/g, '""');
-        if (str.includes(',') || str.includes('\n') || str.includes('\r') || str.includes('"')) {
-          return `"${str}"`;
-        }
-        return str;
+    try {
+      const response = await fetch('/api/reports/export', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Bypass-Tunnel-Reminder': 'true',
+          'X-Auth-Token': getAuthToken()
+        },
+        body: JSON.stringify({ filteredReports: filtered })
       });
 
-      csvRows.push(escapedRow.join(','));
-    });
-
-    const csvContent = '\uFEFF' + csvRows.join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-
-    link.setAttribute('href', url);
-    link.setAttribute('download', `Vash_Reports_Export_${new Date().toISOString().slice(0, 10)}.csv`);
-    link.style.visibility = 'hidden';
-
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    resetInactivityTimer();
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.setAttribute('href', url);
+        link.setAttribute('download', `Vash_Reports_Export_${new Date().toISOString().slice(0, 10)}.xlsx`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } else {
+        const err = await response.json();
+        alert('Export failed: ' + (err.error || 'Server error'));
+      }
+    } catch (err) {
+      console.error('Export error:', err);
+      alert('Network error. Failed to download Excel.');
+    } finally {
+      exportCsvBtn.disabled = false;
+      exportCsvBtn.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+        Export Excel (Styled)
+      `;
+      resetInactivityTimer();
+    }
   }
 
   // Filter events
