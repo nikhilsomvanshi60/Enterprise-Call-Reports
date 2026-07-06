@@ -70,7 +70,7 @@ function getPinHash() {
 
 // 4. API Authorization Middleware (X-Auth-Token header checks & update-pin protection)
 app.use((req, res, next) => {
-  if (req.path.startsWith('/api/reports') || req.path === '/api/security/update-pin') {
+  if (req.path.startsWith('/api/reports') || req.path === '/api/security/update-pin' || req.path.startsWith('/api/departments')) {
     const token = req.headers['x-auth-token'];
     if (!token || hashPin(token) !== getPinHash()) {
       return res.status(401).json({ error: 'Unauthorized: Invalid Security PIN.' });
@@ -179,6 +179,51 @@ function saveReport(report) {
   fs.appendFileSync(CSV_FILE, csvLine, 'utf8');
   createBackup();
 }
+
+// ==========================================================================
+// DEPARTMENTS DATABASE HELPERS & API
+// ==========================================================================
+const DEPARTMENTS_FILE = path.join(DATA_DIR, 'departments.json');
+
+function readDepartments() {
+  if (!fs.existsSync(DEPARTMENTS_FILE)) {
+    const defaults = ["Design", "Electrical Design", "Account", "QC", "Store", "Marketing", "Service"];
+    fs.writeFileSync(DEPARTMENTS_FILE, JSON.stringify(defaults, null, 2), 'utf8');
+    return defaults;
+  }
+  try {
+    const data = fs.readFileSync(DEPARTMENTS_FILE, 'utf8');
+    return JSON.parse(data || '[]');
+  } catch (e) {
+    return ["Design", "Electrical Design", "Account", "QC", "Store", "Marketing", "Service"];
+  }
+}
+
+// API: Get departments list
+app.get('/api/departments', (req, res) => {
+  res.json(readDepartments());
+});
+
+// API: Add new department name
+app.post('/api/departments', (req, res) => {
+  const { name } = req.body;
+  if (!name || name.trim() === '') {
+    return res.status(400).json({ error: 'Department name is required.' });
+  }
+  const sanitized = sanitizeString(name.trim());
+  const list = readDepartments();
+  if (list.map(d => d.toLowerCase()).includes(sanitized.toLowerCase())) {
+    return res.status(400).json({ error: 'Department already exists.' });
+  }
+  list.push(sanitized);
+  try {
+    fs.writeFileSync(DEPARTMENTS_FILE, JSON.stringify(list, null, 2), 'utf8');
+    res.status(201).json({ success: true, departments: list });
+  } catch (err) {
+    console.error('Error saving department:', err);
+    res.status(500).json({ error: 'Failed to save department name.' });
+  }
+});
 
 // API: Get all reports
 app.get('/api/reports', (req, res) => {

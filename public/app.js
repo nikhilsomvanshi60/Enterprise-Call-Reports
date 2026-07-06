@@ -48,8 +48,14 @@ document.addEventListener('DOMContentLoaded', () => {
   const refreshActiveBtn = document.getElementById('refreshActiveBtn');
   const activeReportsList = document.getElementById('activeReportsList');
 
+  // Add Department Custom Elements
+  const newDepartmentGroup = document.getElementById('newDepartmentGroup');
+  const newDepartmentInput = document.getElementById('newDepartmentInput');
+  const saveNewDepartmentBtn = document.getElementById('saveNewDepartmentBtn');
+
   let editingReportId = null;
   let activeReportsData = [];
+  let departmentsData = [];
 
   // Global Auth PIN storage helper
   function getAuthToken() {
@@ -110,6 +116,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateOnlineStatus();
         resetInactivityTimer(); // Start inactivity clock
         fetchActiveReports(); // Load reports list!
+        fetchDepartments(); // Load departments!
       } else {
         localStorage.removeItem('auth_pin');
         showPasscodePrompt();
@@ -145,6 +152,7 @@ document.addEventListener('DOMContentLoaded', () => {
       updateOnlineStatus();
       resetInactivityTimer(); // Start timer
       fetchActiveReports(); // Load reports list!
+      fetchDepartments(); // Load departments!
     } else {
       passcodeError.textContent = '❌ Invalid Security PIN! Try again.';
       passcodeError.style.display = 'block';
@@ -280,6 +288,93 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // Dynamic Departments Functions
+  async function fetchDepartments() {
+    const token = getAuthToken();
+    if (!token) return;
+
+    try {
+      const response = await fetch('/api/departments', {
+        headers: {
+          'Bypass-Tunnel-Reminder': 'true',
+          'X-Auth-Token': token
+        }
+      });
+      if (response.ok) {
+        departmentsData = await response.json();
+        populateDepartmentsDropdown();
+      }
+    } catch (err) {
+      console.error('Error fetching departments:', err);
+    }
+  }
+
+  function populateDepartmentsDropdown() {
+    if (!departmentInput) return;
+    departmentInput.innerHTML = '<option value="">Select Department</option>';
+    departmentsData.forEach(dept => {
+      const opt = document.createElement('option');
+      opt.value = dept;
+      opt.textContent = dept;
+      departmentInput.appendChild(opt);
+    });
+    
+    const newOpt = document.createElement('option');
+    newOpt.value = '__new__';
+    newOpt.textContent = '➕ Add New Department...';
+    departmentInput.appendChild(newOpt);
+  }
+
+  departmentInput.addEventListener('change', () => {
+    if (departmentInput.value === '__new__') {
+      newDepartmentGroup.style.display = 'flex';
+      newDepartmentInput.value = '';
+      newDepartmentInput.focus();
+    } else {
+      newDepartmentGroup.style.display = 'none';
+    }
+  });
+
+  saveNewDepartmentBtn.addEventListener('click', async () => {
+    const newName = newDepartmentInput.value.trim();
+    if (!newName) return;
+
+    saveNewDepartmentBtn.disabled = true;
+    saveNewDepartmentBtn.textContent = 'Adding...';
+
+    try {
+      const response = await fetch('/api/departments', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Bypass-Tunnel-Reminder': 'true',
+          'X-Auth-Token': getAuthToken()
+        },
+        body: JSON.stringify({ name: newName })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        departmentsData = result.departments;
+        populateDepartmentsDropdown();
+        departmentInput.value = newName;
+        newDepartmentGroup.style.display = 'none';
+        newDepartmentInput.value = '';
+      } else {
+        const errData = await response.json();
+        alert('Error: ' + (errData.error || 'Failed to add department'));
+        departmentInput.value = '';
+        newDepartmentGroup.style.display = 'none';
+      }
+    } catch (err) {
+      console.error('Error adding department:', err);
+      alert('Network error. Failed to add department.');
+    } finally {
+      saveNewDepartmentBtn.disabled = false;
+      saveNewDepartmentBtn.textContent = 'Add';
+    }
+  });
+
   // Active Reports Functions
   async function fetchActiveReports() {
     const token = getAuthToken();
@@ -397,6 +492,8 @@ document.addEventListener('DOMContentLoaded', () => {
   function cancelEditing() {
     editingReportId = null;
     editModeBanner.style.display = 'none';
+    newDepartmentGroup.style.display = 'none';
+    newDepartmentInput.value = '';
     callForm.reset();
     
     statusGrid.querySelectorAll('.status-pill').forEach(p => p.classList.remove('active'));

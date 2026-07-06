@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // State
   let reports = [];
+  let departments = [];
   let deptChartInstance = null;
   let statusChartInstance = null;
 
@@ -114,6 +115,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         loadTunnelInfo();
         fetchReports();
+        fetchDepartments();
         resetInactivityTimer(); // Start inactivity clock
       } else {
         localStorage.removeItem('auth_pin');
@@ -150,6 +152,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       loadTunnelInfo();
       fetchReports();
+      fetchDepartments();
       resetInactivityTimer(); // Start timer
     } else {
       passcodeError.textContent = '❌ Invalid Security PIN! Try again.';
@@ -227,7 +230,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const gridColor = isLight ? 'rgba(9, 9, 11, 0.05)' : 'rgba(255, 255, 255, 0.05)';
 
     // A. Aggregate Departments
-    const depts = ['Design', 'Electrical Design', 'Account', 'QC', 'Store', 'Marketing', 'Service'];
+    let depts = [...departments];
+    if (depts.length === 0) {
+      depts = Array.from(new Set(reports.map(r => r.department).filter(Boolean)));
+    }
+    if (depts.length === 0) {
+      depts = ['Design', 'Electrical Design', 'Account', 'QC', 'Store', 'Marketing', 'Service'];
+    }
     const deptCounts = depts.map(d => filteredData.filter(r => r.department === d).length);
 
     const ctxDept = document.getElementById('deptChart').getContext('2d');
@@ -746,6 +755,38 @@ document.addEventListener('DOMContentLoaded', () => {
       console.error('Error deleting report:', err);
       alert('Network error. Could not reach PC server.');
     }
+  }
+
+  // Dynamic Departments Functions
+  async function fetchDepartments() {
+    const token = getAuthToken();
+    if (!token) return;
+
+    try {
+      const response = await fetch('/api/departments', {
+        headers: {
+          'Bypass-Tunnel-Reminder': 'true',
+          'X-Auth-Token': token
+        }
+      });
+      if (response.ok) {
+        departments = await response.json();
+        populateEditDepartmentsDropdown();
+      }
+    } catch (err) {
+      console.error('Error fetching departments:', err);
+    }
+  }
+
+  function populateEditDepartmentsDropdown() {
+    if (!editDepartmentSelect) return;
+    editDepartmentSelect.innerHTML = '';
+    departments.forEach(dept => {
+      const opt = document.createElement('option');
+      opt.value = dept;
+      opt.textContent = dept;
+      editDepartmentSelect.appendChild(opt);
+    });
   }
 
   // Fetch reports from PC backend API
