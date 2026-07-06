@@ -137,8 +137,16 @@
       </div>
     </div>
 
-    <!-- Interactive Filters Panel -->
-    <div class="filters-panel">
+    <!-- Dashboard Tabs Navigation -->
+    <div style="display: flex; gap: 0.5rem; margin-bottom: 1.25rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">
+      <button id="tabReportsBtn" class="theme-toggle-btn active-tab" style="border-radius: 8px; padding: 0.6rem 1.25rem; font-weight: 600; cursor: pointer; border: 1px solid var(--primary); background: rgba(99, 102, 241, 0.1); color: var(--primary);">📋 Reports Log</button>
+      <button id="tabHolidaysBtn" class="theme-toggle-btn" style="border-radius: 8px; padding: 0.6rem 1.25rem; font-weight: 600; cursor: pointer; border: 1px solid transparent; background: transparent; color: var(--text-secondary);">📅 Holidays & Leaves</button>
+    </div>
+
+    <!-- TAB 1 CONTENT: REPORTS LOG -->
+    <div id="tabReportsContent">
+      <!-- Interactive Filters Panel -->
+      <div class="filters-panel">
       <!-- Search Input -->
       <div class="filter-group" style="flex-grow: 2;">
         <label for="searchFilter" style="display: none;">Search</label>
@@ -190,6 +198,71 @@
         </tbody>
       </table>
     </div>
+    </div> <!-- Close tabReportsContent -->
+
+    <!-- TAB 2 CONTENT: HOLIDAYS & LEAVES -->
+    <div id="tabHolidaysContent" style="display: none;">
+      <div style="display: flex; gap: 1.5rem; flex-wrap: wrap; align-items: flex-start;">
+        <!-- Left Side: Add Holiday/Leave Form -->
+        <div class="chart-card" style="flex: 1; min-width: 300px; padding: 1.5rem;">
+          <h3 style="margin-top: 0;">Declare Holiday or Leave</h3>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.25rem; line-height: 1.5;">Add a custom public holiday, company festival, or personal user leave. These will show inline in Excel exports with "Aaj nahi aana aapa unga" styling.</p>
+          
+          <form id="holidayForm" style="display: flex; flex-direction: column; gap: 1rem;">
+            <div class="form-group" style="width: auto; max-width: none;">
+              <label for="holidayDate">Date *</label>
+              <input type="date" id="holidayDate" required style="padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border-color); background: rgba(255, 255, 255, 0.05); color: var(--text-primary); font-family: 'Outfit'; width: 100%;">
+            </div>
+            
+            <div class="form-group" style="width: auto; max-width: none;">
+              <label for="holidayType">Type *</label>
+              <select id="holidayType" required style="padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border-color); background: rgba(255, 255, 255, 0.05); color: var(--text-primary); font-family: 'Outfit'; width: 100%;">
+                <option value="Personal Leave">Personal Leave (Chuti)</option>
+                <option value="Festival Holiday">Festival Holiday (Tyohar)</option>
+                <option value="Company Event">Company Event (Program)</option>
+              </select>
+            </div>
+            
+            <div class="form-group" style="width: auto; max-width: none;" id="holidayUserGroup">
+              <label for="holidayUser">User Name (if Personal Leave)</label>
+              <input type="text" id="holidayUser" placeholder="e.g. Amit" style="padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border-color); background: rgba(255, 255, 255, 0.05); color: var(--text-primary); font-family: 'Outfit'; width: 100%;">
+            </div>
+            
+            <div class="form-group" style="width: auto; max-width: none;">
+              <label for="holidayDesc">Reason / Details *</label>
+              <input type="text" id="holidayDesc" placeholder="e.g. Sick Leave / Diwali Holiday" required style="padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border-color); background: rgba(255, 255, 255, 0.05); color: var(--text-primary); font-family: 'Outfit'; width: 100%;">
+            </div>
+            
+            <button type="submit" class="btn btn-primary" style="margin: 0.5rem 0 0 0; padding: 0.75rem; width: 100%;">Add Holiday / Leave</button>
+          </form>
+        </div>
+        
+        <!-- Right Side: Current Holidays & Leaves List -->
+        <div class="chart-card" style="flex: 2; min-width: 400px; padding: 1.5rem; display: flex; flex-direction: column;">
+          <h3 style="margin-top: 0;">Declared Holidays & Leaves</h3>
+          
+          <div class="table-container" style="flex: 1; margin-top: 1rem; overflow-y: auto; max-height: 400px;">
+            <table id="holidaysTable">
+              <thead>
+                <tr>
+                  <th style="width: 120px;">Date</th>
+                  <th>User</th>
+                  <th>Type</th>
+                  <th>Description</th>
+                  <th style="width: 80px; text-align: center;">Action</th>
+                </tr>
+              </thead>
+              <tbody id="holidaysTableBody">
+                <tr>
+                  <td colspan="5" class="no-data-msg">No holidays or leaves declared.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Edit Report Modal -->
     <div id="editModal" class="modal-overlay">
       <div class="modal-card">

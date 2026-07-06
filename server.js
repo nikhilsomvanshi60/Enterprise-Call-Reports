@@ -71,7 +71,7 @@ function getPinHash() {
 
 // 4. API Authorization Middleware (X-Auth-Token header checks & update-pin protection)
 app.use((req, res, next) => {
-  if (req.path.startsWith('/api/reports') || req.path === '/api/security/update-pin' || req.path.startsWith('/api/departments')) {
+  if (req.path.startsWith('/api/reports') || req.path === '/api/security/update-pin' || req.path.startsWith('/api/departments') || req.path.startsWith('/api/holidays')) {
     const token = req.headers['x-auth-token'];
     if (!token || hashPin(token) !== getPinHash()) {
       return res.status(401).json({ error: 'Unauthorized: Invalid Security PIN.' });
@@ -149,122 +149,249 @@ function createBackup() {
 }
 
 // Write reports to styled native Excel spreadsheet on disk
-async function saveDiskExcel(reports) {
-  try {
-    const workbook = new ExcelJS.Workbook();
-    const worksheet = workbook.addWorksheet('All Call Reports');
+// Generate styled workbook grouped by date with 2 lines gaps and holiday row indicators
+async function generateStyledWorkbook(reports, holidays) {
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet('Call Reports Log');
 
-    worksheet.columns = [
-      { header: 'Date', key: 'dateTime', width: 18 },
-      { header: 'User', key: 'user', width: 22 },
-      { header: 'Department', key: 'department', width: 22 },
-      { header: 'Problems', key: 'problems', width: 45 },
-      { header: 'Action', key: 'action', width: 45 },
-      { header: 'Status', key: 'status', width: 15 },
-      { header: 'Resolve Date', key: 'resolveDate', width: 18 },
-      { header: 'Remarks', key: 'remarks', width: 30 }
-    ];
+  worksheet.columns = [
+    { header: 'Date', key: 'dateTime', width: 18 },
+    { header: 'User', key: 'user', width: 22 },
+    { header: 'Department', key: 'department', width: 22 },
+    { header: 'Problems', key: 'problems', width: 45 },
+    { header: 'Action', key: 'action', width: 45 },
+    { header: 'Status', key: 'status', width: 15 },
+    { header: 'Resolve Date', key: 'resolveDate', width: 18 },
+    { header: 'Remarks', key: 'remarks', width: 30 }
+  ];
 
-    reports.forEach(r => {
-      worksheet.addRow({
-        dateTime: r.dateTime || '',
-        user: r.user || '',
-        department: r.department || '',
-        problems: r.problems || '',
-        action: r.action || '',
-        status: r.status || '',
-        resolveDate: r.resolveDate || '',
-        remarks: r.remarks || ''
+  // Compile sorted list of unique dates
+  const datesSet = new Set();
+  reports.forEach(r => {
+    if (r.dateTime) {
+      datesSet.add(r.dateTime.slice(0, 10));
+    }
+  });
+  holidays.forEach(h => {
+    if (h.date) {
+      datesSet.add(h.date);
+    }
+  });
+
+  if (datesSet.size === 0) {
+    datesSet.add(new Date().toISOString().slice(0, 10));
+  }
+
+  // Sort descending (newest at top)
+  const sortedDates = Array.from(datesSet).sort((a, b) => new Date(b) - new Date(a));
+
+  worksheet.views = [{ showGridLines: true }];
+  worksheet.getRow(1).height = 28;
+
+  // Header Style
+  const headerRow = worksheet.getRow(1);
+  headerRow.eachCell(cell => {
+    cell.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF4F46E5' } // Indigo color
+    };
+    cell.font = {
+      name: 'Segoe UI',
+      size: 11,
+      bold: true,
+      color: { argb: 'FFFFFFFF' }
+    };
+    cell.alignment = { vertical: 'middle', horizontal: 'center' };
+    cell.border = {
+      top: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+      left: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+      bottom: { style: 'medium', color: { argb: 'FF94A3B8' } },
+      right: { style: 'thin', color: { argb: 'FFCBD5E1' } }
+    };
+  });
+
+  for (let i = 0; i < sortedDates.length; i++) {
+    const dateStr = sortedDates[i];
+    const dateObj = new Date(dateStr);
+    
+    // Check Sunday (0 = Sunday)
+    const isSunday = dateObj.getDay() === 0;
+
+    // Check Public Holidays (India)
+    const monthDay = dateStr.slice(5);
+    let publicHolidayName = null;
+    if (monthDay === '01-26') publicHolidayName = 'Republic Day';
+    else if (monthDay === '08-15') publicHolidayName = 'Independence Day';
+    else if (monthDay === '10-02') publicHolidayName = 'Gandhi Jayanti';
+    else if (monthDay === '12-25') publicHolidayName = 'Christmas Day';
+
+    // Custom holidays/leaves
+    const customHols = holidays.filter(h => h.date === dateStr);
+
+    // Reports for this day
+    const dayReports = reports.filter(r => r.dateTime && r.dateTime.slice(0, 10) === dateStr);
+
+    if (dayReports.length === 0 && (isSunday || publicHolidayName || customHols.length > 0)) {
+      if (customHols.length > 0) {
+        customHols.forEach(h => {
+          writeHolidayRow(worksheet, dateStr, h.user, h.type, h.description);
+        });
+      } else if (publicHolidayName) {
+        writeHolidayRow(worksheet, dateStr, 'All', 'Public Holiday', `${publicHolidayName} Holiday - Aaj nahi aana aapa unga`);
+      } else if (isSunday) {
+        writeHolidayRow(worksheet, dateStr, 'All', 'Weekly Off', 'Sunday Off - Aaj nahi aana aapa unga');
+      }
+    } else {
+      // Write custom holidays/leaves for the day first
+      if (customHols.length > 0) {
+        customHols.forEach(h => {
+          writeHolidayRow(worksheet, dateStr, h.user, h.type, h.description);
+        });
+      } else if (publicHolidayName) {
+        writeHolidayRow(worksheet, dateStr, 'All', 'Public Holiday', `${publicHolidayName} Holiday - Work Logged`);
+      } else if (isSunday) {
+        writeHolidayRow(worksheet, dateStr, 'All', 'Weekly Off', 'Sunday Work Logged');
+      }
+
+      // Write normal reports
+      dayReports.forEach(r => {
+        writeReportRow(worksheet, r);
       });
-    });
+    }
 
-    worksheet.views = [{ showGridLines: true }];
-    worksheet.getRow(1).height = 28;
+    // Insert 2 blank spacer rows between date groups
+    if (i < sortedDates.length - 1) {
+      const spacer1 = worksheet.addRow([]);
+      spacer1.height = 15;
+      const spacer2 = worksheet.addRow([]);
+      spacer2.height = 15;
+      
+      // Clear borders for spacers to make it look like a physical gap
+      spacer1.eachCell(cell => { cell.border = {}; });
+      spacer2.eachCell(cell => { cell.border = {}; });
+    }
+  }
 
-    // Header Style
-    const headerRow = worksheet.getRow(1);
-    headerRow.eachCell(cell => {
+  return workbook;
+}
+
+function writeHolidayRow(worksheet, date, user, type, desc) {
+  const row = worksheet.addRow({
+    dateTime: date,
+    user: user,
+    department: type,
+    problems: desc,
+    action: '',
+    status: 'Holiday',
+    resolveDate: '',
+    remarks: ''
+  });
+  row.height = 24;
+
+  row.eachCell((cell, colNumber) => {
+    cell.font = { name: 'Segoe UI', size: 10, bold: true, italic: true };
+    cell.alignment = { vertical: 'middle' };
+    
+    // Highlight with light amber background fill
+    cell.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFFEF3C7' } // Amber background
+    };
+    
+    cell.font.color = { argb: 'FF92400E' }; // Amber/Dark Orange text
+    
+    cell.border = {
+      top: { style: 'thin', color: { argb: 'FFF59E0B' } },
+      left: { style: 'thin', color: { argb: 'FFF59E0B' } },
+      bottom: { style: 'thin', color: { argb: 'FFF59E0B' } },
+      right: { style: 'thin', color: { argb: 'FFF59E0B' } }
+    };
+
+    const key = worksheet.columns[colNumber - 1].key;
+    if (key === 'dateTime' || key === 'status') {
+      cell.alignment = { vertical: 'middle', horizontal: 'center' };
+    }
+  });
+}
+
+function writeReportRow(worksheet, r) {
+  const row = worksheet.addRow({
+    dateTime: r.dateTime || '',
+    user: r.user || '',
+    department: r.department || '',
+    problems: r.problems || '',
+    action: r.action || '',
+    status: r.status || '',
+    resolveDate: r.resolveDate || '',
+    remarks: r.remarks || ''
+  });
+  row.height = 24;
+
+  const rowNumber = row.number;
+
+  row.eachCell((cell, colNumber) => {
+    cell.font = { name: 'Segoe UI', size: 10 };
+    cell.alignment = { vertical: 'middle' };
+
+    // Zebra striping
+    if (rowNumber % 2 === 0) {
       cell.fill = {
         type: 'pattern',
         pattern: 'solid',
-        fgColor: { argb: 'FF4F46E5' } // Indigo color
+        fgColor: { argb: 'FFF8FAFC' }
       };
-      cell.font = {
-        name: 'Segoe UI',
-        size: 11,
-        bold: true,
-        color: { argb: 'FFFFFFFF' }
-      };
+    }
+
+    cell.border = {
+      top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+      left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+      bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+      right: { style: 'thin', color: { argb: 'FFE2E8F0' } }
+    };
+
+    const key = worksheet.columns[colNumber - 1].key;
+    if (key === 'dateTime' || key === 'status' || key === 'resolveDate') {
       cell.alignment = { vertical: 'middle', horizontal: 'center' };
-      cell.border = {
-        top: { style: 'thin', color: { argb: 'FFCBD5E1' } },
-        left: { style: 'thin', color: { argb: 'FFCBD5E1' } },
-        bottom: { style: 'medium', color: { argb: 'FF94A3B8' } },
-        right: { style: 'thin', color: { argb: 'FFCBD5E1' } }
-      };
-    });
+    } else {
+      cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+    }
 
-    // Data Style
-    worksheet.eachRow((row, rowNumber) => {
-      if (rowNumber === 1) return;
-      row.height = 24;
-
-      row.eachCell((cell, colNumber) => {
-        cell.font = { name: 'Segoe UI', size: 10 };
-        cell.alignment = { vertical: 'middle' };
-
-        // Zebra striping
-        if (rowNumber % 2 === 0) {
-          cell.fill = {
-            type: 'pattern',
-            pattern: 'solid',
-            fgColor: { argb: 'FFF8FAFC' }
-          };
-        }
-
-        cell.border = {
-          top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
-          left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
-          bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
-          right: { style: 'thin', color: { argb: 'FFE2E8F0' } }
+    if (key === 'status') {
+      const statusVal = String(cell.value).toLowerCase();
+      cell.font = { name: 'Segoe UI', size: 10, bold: true };
+      if (statusVal === 'resolved') {
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFD1FAE5' }
         };
+        cell.font.color = { argb: 'FF065F46' };
+      } else if (statusVal === 'in progress') {
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFFEF3C7' }
+        };
+        cell.font.color = { argb: 'FF92400E' };
+      } else {
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFFEE2E2' }
+        };
+        cell.font.color = { argb: 'FF991B1B' };
+      }
+    }
+  });
+}
 
-        const key = worksheet.columns[colNumber - 1].key;
-        if (key === 'dateTime' || key === 'status' || key === 'resolveDate') {
-          cell.alignment = { vertical: 'middle', horizontal: 'center' };
-        } else {
-          cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
-        }
-
-        if (key === 'status') {
-          const statusVal = String(cell.value).toLowerCase();
-          cell.font = { name: 'Segoe UI', size: 10, bold: true };
-          if (statusVal === 'resolved') {
-            cell.fill = {
-              type: 'pattern',
-              pattern: 'solid',
-              fgColor: { argb: 'FFD1FAE5' }
-            };
-            cell.font.color = { argb: 'FF065F46' };
-          } else if (statusVal === 'in progress') {
-            cell.fill = {
-              type: 'pattern',
-              pattern: 'solid',
-              fgColor: { argb: 'FFFEF3C7' }
-            };
-            cell.font.color = { argb: 'FF92400E' };
-          } else {
-            cell.fill = {
-              type: 'pattern',
-              pattern: 'solid',
-              fgColor: { argb: 'FFFEE2E2' }
-            };
-            cell.font.color = { argb: 'FF991B1B' };
-          }
-        }
-      });
-    });
-
+// Write reports to styled native Excel spreadsheet on disk
+async function saveDiskExcel(reports) {
+  try {
+    const holidays = readHolidays();
+    const workbook = await generateStyledWorkbook(reports, holidays);
     const filePath = path.join(DATA_DIR, 'reports.xlsx');
     await workbook.xlsx.writeFile(filePath);
     console.log('📈 Styled reports.xlsx saved successfully.');
@@ -350,6 +477,86 @@ app.post('/api/departments', (req, res) => {
   } catch (err) {
     console.error('Error saving department:', err);
     res.status(500).json({ error: 'Failed to save department name.' });
+  }
+});
+
+// ==========================================================================
+// HOLIDAYS & LEAVES DATABASE HELPERS & API
+// ==========================================================================
+const HOLIDAYS_FILE = path.join(DATA_DIR, 'holidays.json');
+
+function readHolidays() {
+  if (!fs.existsSync(HOLIDAYS_FILE)) {
+    fs.writeFileSync(HOLIDAYS_FILE, JSON.stringify([], null, 2), 'utf8');
+    return [];
+  }
+  try {
+    const data = fs.readFileSync(HOLIDAYS_FILE, 'utf8');
+    return JSON.parse(data || '[]');
+  } catch (e) {
+    return [];
+  }
+}
+
+// API: Get all holidays/leaves
+app.get('/api/holidays', (req, res) => {
+  res.json(readHolidays());
+});
+
+// API: Save new custom holiday/leave
+app.post('/api/holidays', (req, res) => {
+  const { date, type, user, description } = req.body;
+  if (!date || !type || !description) {
+    return res.status(400).json({ error: 'Date, Type, and Description are required.' });
+  }
+
+  const holidays = readHolidays();
+  
+  // Prevent duplicate logs for same date and user/event
+  const exists = holidays.some(h => h.date === date && h.user === (user || 'All'));
+  if (exists) {
+    return res.status(400).json({ error: 'A holiday/leave is already registered for this date.' });
+  }
+
+  const newHoliday = {
+    id: 'hol_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+    date,
+    type,
+    user: user || 'All',
+    description: sanitizeString(description.trim())
+  };
+
+  holidays.push(newHoliday);
+  
+  try {
+    fs.writeFileSync(HOLIDAYS_FILE, JSON.stringify(holidays, null, 2), 'utf8');
+    // Regenerate reports.xlsx
+    saveDiskExcel(readReports());
+    res.status(201).json({ success: true, holidays: holidays, newHoliday });
+  } catch (err) {
+    console.error('Error saving holiday:', err);
+    res.status(500).json({ error: 'Failed to save holiday/leave.' });
+  }
+});
+
+// API: Delete holiday/leave
+app.delete('/api/holidays/:id', (req, res) => {
+  const { id } = req.params;
+  const holidays = readHolidays();
+  const updated = holidays.filter(h => h.id !== id);
+
+  if (holidays.length === updated.length) {
+    return res.status(404).json({ error: 'Holiday/leave not found.' });
+  }
+
+  try {
+    fs.writeFileSync(HOLIDAYS_FILE, JSON.stringify(updated, null, 2), 'utf8');
+    // Regenerate reports.xlsx
+    saveDiskExcel(readReports());
+    res.json({ success: true, message: 'Holiday/leave deleted.' });
+  } catch (err) {
+    console.error('Error deleting holiday:', err);
+    res.status(500).json({ error: 'Failed to delete holiday/leave.' });
   }
 });
 
@@ -502,118 +709,8 @@ app.post('/api/reports/export', async (req, res) => {
       return res.status(400).json({ error: 'Invalid reports list.' });
     }
     
-    const workbook = new ExcelJS.Workbook();
-    const worksheet = workbook.addWorksheet('Filtered Call Reports');
-    
-    worksheet.columns = [
-      { header: 'Date', key: 'dateTime', width: 18 },
-      { header: 'User', key: 'user', width: 22 },
-      { header: 'Department', key: 'department', width: 22 },
-      { header: 'Problems', key: 'problems', width: 45 },
-      { header: 'Action', key: 'action', width: 45 },
-      { header: 'Status', key: 'status', width: 15 },
-      { header: 'Resolve Date', key: 'resolveDate', width: 18 },
-      { header: 'Remarks', key: 'remarks', width: 30 }
-    ];
-    
-    filteredReports.forEach(r => {
-      worksheet.addRow({
-        dateTime: r.dateTime || '',
-        user: r.user || '',
-        department: r.department || '',
-        problems: r.problems || '',
-        action: r.action || '',
-        status: r.status || '',
-        resolveDate: r.resolveDate || '',
-        remarks: r.remarks || ''
-      });
-    });
-    
-    worksheet.views = [{ showGridLines: true }];
-    worksheet.getRow(1).height = 28;
-    
-    // Header Style
-    const headerRow = worksheet.getRow(1);
-    headerRow.eachCell(cell => {
-      cell.fill = {
-        type: 'pattern',
-        pattern: 'solid',
-        fgColor: { argb: 'FF4F46E5' }
-      };
-      cell.font = {
-        name: 'Segoe UI',
-        size: 11,
-        bold: true,
-        color: { argb: 'FFFFFFFF' }
-      };
-      cell.alignment = { vertical: 'middle', horizontal: 'center' };
-      cell.border = {
-        top: { style: 'thin', color: { argb: 'FFCBD5E1' } },
-        left: { style: 'thin', color: { argb: 'FFCBD5E1' } },
-        bottom: { style: 'medium', color: { argb: 'FF94A3B8' } },
-        right: { style: 'thin', color: { argb: 'FFCBD5E1' } }
-      };
-    });
-    
-    // Data Style
-    worksheet.eachRow((row, rowNumber) => {
-      if (rowNumber === 1) return;
-      row.height = 24;
-      
-      row.eachCell((cell, colNumber) => {
-        cell.font = { name: 'Segoe UI', size: 10 };
-        cell.alignment = { vertical: 'middle' };
-        
-        if (rowNumber % 2 === 0) {
-          cell.fill = {
-            type: 'pattern',
-            pattern: 'solid',
-            fgColor: { argb: 'FFF8FAFC' }
-          };
-        }
-        
-        cell.border = {
-          top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
-          left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
-          bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
-          right: { style: 'thin', color: { argb: 'FFE2E8F0' } }
-        };
-        
-        const key = worksheet.columns[colNumber - 1].key;
-        if (key === 'dateTime' || key === 'status' || key === 'resolveDate') {
-          cell.alignment = { vertical: 'middle', horizontal: 'center' };
-        } else {
-          cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
-        }
-        
-        if (key === 'status') {
-          const statusVal = String(cell.value).toLowerCase();
-          cell.font = { name: 'Segoe UI', size: 10, bold: true };
-          if (statusVal === 'resolved') {
-            cell.fill = {
-              type: 'pattern',
-              pattern: 'solid',
-              fgColor: { argb: 'FFD1FAE5' }
-            };
-            cell.font.color = { argb: 'FF065F46' };
-          } else if (statusVal === 'in progress') {
-            cell.fill = {
-              type: 'pattern',
-              pattern: 'solid',
-              fgColor: { argb: 'FFFEF3C7' }
-            };
-            cell.font.color = { argb: 'FF92400E' };
-          } else {
-            cell.fill = {
-              type: 'pattern',
-              pattern: 'solid',
-              fgColor: { argb: 'FFFEE2E2' }
-            };
-            cell.font.color = { argb: 'FF991B1B' };
-          }
-        }
-      });
-    });
+    const holidays = readHolidays();
+    const workbook = await generateStyledWorkbook(filteredReports, holidays);
     
     res.setHeader(
       'Content-Type',

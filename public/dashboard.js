@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // State
   let reports = [];
   let departments = [];
+  let holidaysData = [];
   let deptChartInstance = null;
   let statusChartInstance = null;
 
@@ -42,6 +43,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const closeModalBtn = document.getElementById('closeModalBtn');
   const cancelEditBtn = document.getElementById('cancelEditBtn');
+
+  // Tab Elements
+  const tabReportsBtn = document.getElementById('tabReportsBtn');
+  const tabHolidaysBtn = document.getElementById('tabHolidaysBtn');
+  const tabReportsContent = document.getElementById('tabReportsContent');
+  const tabHolidaysContent = document.getElementById('tabHolidaysContent');
+
+  // Holiday Elements
+  const holidayForm = document.getElementById('holidayForm');
+  const holidayDate = document.getElementById('holidayDate');
+  const holidayType = document.getElementById('holidayType');
+  const holidayUserGroup = document.getElementById('holidayUserGroup');
+  const holidayUser = document.getElementById('holidayUser');
+  const holidayDesc = document.getElementById('holidayDesc');
+  const holidaysTableBody = document.getElementById('holidaysTableBody');
 
   // Change PIN Modal Elements
   const pinModal = document.getElementById('pinModal');
@@ -116,6 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
         loadTunnelInfo();
         fetchReports();
         fetchDepartments();
+        fetchHolidays();
         resetInactivityTimer(); // Start inactivity clock
       } else {
         localStorage.removeItem('auth_pin');
@@ -153,6 +170,7 @@ document.addEventListener('DOMContentLoaded', () => {
       loadTunnelInfo();
       fetchReports();
       fetchDepartments();
+      fetchHolidays();
       resetInactivityTimer(); // Start timer
     } else {
       passcodeError.textContent = '❌ Invalid Security PIN! Try again.';
@@ -893,6 +911,182 @@ document.addEventListener('DOMContentLoaded', () => {
   dateFilter.addEventListener('change', () => {
     renderTable();
     resetInactivityTimer();
+  });
+
+  // Tab Navigation Listeners
+  tabReportsBtn.addEventListener('click', () => {
+    setActiveTab('reports');
+  });
+
+  tabHolidaysBtn.addEventListener('click', () => {
+    setActiveTab('holidays');
+  });
+
+  function setActiveTab(tab) {
+    if (tab === 'reports') {
+      tabReportsBtn.classList.add('active-tab');
+      tabReportsBtn.style.border = '1px solid var(--primary)';
+      tabReportsBtn.style.background = 'rgba(99, 102, 241, 0.1)';
+      tabReportsBtn.style.color = 'var(--primary)';
+
+      tabHolidaysBtn.classList.remove('active-tab');
+      tabHolidaysBtn.style.border = '1px solid transparent';
+      tabHolidaysBtn.style.background = 'transparent';
+      tabHolidaysBtn.style.color = 'var(--text-secondary)';
+
+      tabReportsContent.style.display = 'block';
+      tabHolidaysContent.style.display = 'none';
+    } else {
+      tabHolidaysBtn.classList.add('active-tab');
+      tabHolidaysBtn.style.border = '1px solid var(--primary)';
+      tabHolidaysBtn.style.background = 'rgba(99, 102, 241, 0.1)';
+      tabHolidaysBtn.style.color = 'var(--primary)';
+
+      tabReportsBtn.classList.remove('active-tab');
+      tabReportsBtn.style.border = '1px solid transparent';
+      tabReportsBtn.style.background = 'transparent';
+      tabReportsBtn.style.color = 'var(--text-secondary)';
+
+      tabReportsContent.style.display = 'none';
+      tabHolidaysContent.style.display = 'block';
+      
+      fetchHolidays();
+    }
+  }
+
+  // Holiday API Management Functions
+  async function fetchHolidays() {
+    const token = getAuthToken();
+    if (!token) return;
+
+    try {
+      const response = await fetch('/api/holidays', {
+        headers: {
+          'Bypass-Tunnel-Reminder': 'true',
+          'X-Auth-Token': token
+        }
+      });
+      if (response.ok) {
+        holidaysData = await response.json();
+        renderHolidaysTable();
+      }
+    } catch (err) {
+      console.error('Error fetching holidays:', err);
+    }
+  }
+
+  function renderHolidaysTable() {
+    if (!holidaysTableBody) return;
+    
+    if (holidaysData.length === 0) {
+      holidaysTableBody.innerHTML = `
+        <tr>
+          <td colspan="5" class="no-data-msg">No holidays or leaves declared.</td>
+        </tr>
+      `;
+      return;
+    }
+
+    const sorted = [...holidaysData].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    holidaysTableBody.innerHTML = '';
+    sorted.forEach(h => {
+      const tr = document.createElement('tr');
+      
+      const typeBadge = h.type === 'Personal Leave' ? 'status-pill pending' : 'status-pill inprogress';
+
+      tr.innerHTML = `
+        <td><strong>${h.date}</strong></td>
+        <td>${h.user === 'All' ? '<span style="color: var(--primary); font-weight: 500;">All Staff</span>' : h.user}</td>
+        <td><span class="${typeBadge}" style="display: inline-block; padding: 0.15rem 0.5rem; font-size: 0.75rem;">${h.type}</span></td>
+        <td>${h.description}</td>
+        <td style="text-align: center;">
+          <button class="btn-delete-holiday btn-action" data-id="${h.id}" title="Delete Leave" style="background: none; border: none; cursor: pointer; font-size: 1rem; color: var(--status-noanswer);">🗑️</button>
+        </td>
+      `;
+      holidaysTableBody.appendChild(tr);
+    });
+
+    holidaysTableBody.querySelectorAll('.btn-delete-holiday').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const id = btn.getAttribute('data-id');
+        if (confirm('Are you sure you want to delete this holiday/leave declaration?')) {
+          await deleteHoliday(id);
+        }
+      });
+    });
+  }
+
+  async function deleteHoliday(id) {
+    const token = getAuthToken();
+    if (!token) return;
+
+    try {
+      const response = await fetch(`/api/holidays/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Bypass-Tunnel-Reminder': 'true',
+          'X-Auth-Token': token
+        }
+      });
+      if (response.ok) {
+        fetchHolidays();
+      } else {
+        const err = await response.json();
+        alert('Delete failed: ' + (err.error || 'Server error'));
+      }
+    } catch (err) {
+      console.error('Delete error:', err);
+      alert('Failed to delete holiday due to a network error.');
+    }
+  }
+
+  holidayType.addEventListener('change', () => {
+    if (holidayType.value === 'Personal Leave') {
+      holidayUserGroup.style.display = 'flex';
+      holidayUser.required = true;
+    } else {
+      holidayUserGroup.style.display = 'none';
+      holidayUser.required = false;
+      holidayUser.value = '';
+    }
+  });
+
+  holidayForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const payload = {
+      date: holidayDate.value,
+      type: holidayType.value,
+      user: holidayUser.value || 'All',
+      description: holidayDesc.value
+    };
+
+    try {
+      const response = await fetch('/api/holidays', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Bypass-Tunnel-Reminder': 'true',
+          'X-Auth-Token': getAuthToken()
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const result = await response.json();
+      if (response.ok) {
+        holidayForm.reset();
+        holidayUserGroup.style.display = 'flex';
+        holidayUser.required = true;
+        
+        fetchHolidays();
+      } else {
+        alert('Failed: ' + (result.error || 'Server error'));
+      }
+    } catch (err) {
+      console.error('Add holiday error:', err);
+      alert('Failed to add holiday due to a network error.');
+    }
   });
 
   // Action events
