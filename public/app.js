@@ -554,7 +554,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function getOfflineQueue() {
     try {
-      return JSON.parse(localStorage.getItem('vash_reports_queue')) || [];
+      return JSON.parse(localStorage.getItem('NIK_reports_queue')) || [];
     } catch (e) {
       return [];
     }
@@ -567,7 +567,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
       queue.push(reportData);
     }
-    localStorage.setItem('vash_reports_queue', JSON.stringify(queue));
+    localStorage.setItem('NIK_reports_queue', JSON.stringify(queue));
   }
 
   async function syncOfflineQueue() {
@@ -608,7 +608,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    localStorage.setItem('vash_reports_queue', '[]');
+    localStorage.setItem('NIK_reports_queue', '[]');
     showToastNotification(`✅ ${queue.length} reports successfully synced to PC!`);
     fetchActiveReports();
   }
@@ -638,6 +638,12 @@ document.addEventListener('DOMContentLoaded', () => {
   // 7. Submit Form data
   callForm.addEventListener('submit', async (e) => {
     e.preventDefault();
+
+    if (departmentInput.value === '__new__') {
+      alert('⚠️ Please save your new department name first by clicking the "Add" button, or select a different department.');
+      newDepartmentInput.focus();
+      return;
+    }
 
     submitBtn.disabled = true;
     submitBtn.innerHTML = editingReportId ? 'Updating...' : 'Sending...';
@@ -699,6 +705,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         fetchActiveReports();
+        fetchDepartments();
         resetInactivityTimer();
       } else {
         const errorData = await response.json();
