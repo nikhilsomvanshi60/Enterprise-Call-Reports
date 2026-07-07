@@ -6,7 +6,8 @@
     "Administrator",
     "Domain Admins",
     "IT-Staff",
-    "BUILTIN\\Administrators"
+    "BUILTIN\\Administrators",
+    "infodba"
   ],
   "enableADAuth": true
 }
