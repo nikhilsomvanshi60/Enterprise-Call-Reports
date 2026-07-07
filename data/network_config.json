@@ -5,7 +5,8 @@
   "allowedDomainUsers": [
     "Administrator",
     "Domain Admins",
-    "IT-Staff"
+    "IT-Staff",
+    "BUILTIN\\Administrators"
   ],
-  "enableADAuth": false
+  "enableADAuth": true
 }

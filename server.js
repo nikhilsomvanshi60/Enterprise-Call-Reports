@@ -111,25 +111,33 @@ function windowsAuthMiddleware(req, res, next) {
     return next();
   }
 
-  // Windows-specific domain or local group check via 'whoami' Command Line execution
-  // In a local intranet system, check whoami /groups or whoami /user to authenticate
-  exec('whoami /groups', (err, stdout, stderr) => {
-    if (err) {
-      console.error('⚠️ Windows Auth check failed:', err || stderr);
-      return res.status(401).send('Unauthorized: Windows User verification failed.');
-    }
+  // Check 1: Check groups via whoami /groups
+  exec('whoami /groups', (errGroups, stdoutGroups, stderrGroups) => {
+    // Check 2: Check username via whoami
+    exec('whoami', (errUser, stdoutUser, stderrUser) => {
+      const groupsOutput = errGroups ? '' : stdoutGroups;
+      const userOutput = errUser ? '' : stdoutUser.trim();
 
-    const groupsOutput = stdout;
-    const isAllowed = netConfig.allowedDomainUsers.some(allowedUserOrGroup => {
-      const reg = new RegExp('\\b' + allowedUserOrGroup.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '\\b', 'i');
-      return reg.test(groupsOutput);
+      const isAllowedGroup = netConfig.allowedDomainUsers.some(allowedUserOrGroup => {
+        const reg = new RegExp('\\b' + allowedUserOrGroup.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '\\b', 'i');
+        return reg.test(groupsOutput);
+      });
+
+      const isAllowedUser = netConfig.allowedDomainUsers.some(allowedUserOrGroup => {
+        const cleanAllowed = allowedUserOrGroup.toLowerCase();
+        return userOutput.toLowerCase().includes(cleanAllowed);
+      });
+
+      if (isAllowedGroup || isAllowedUser) {
+        next();
+      } else {
+        res.status(403).send(
+          '<h3>Forbidden: Access Denied</h3>' +
+          `<p>Your Windows Session credentials (<b>${userOutput || 'Unknown'}</b>) do not belong to the allowed administrator groups or users.</p>` +
+          '<p>Authorized users list: ' + JSON.stringify(netConfig.allowedDomainUsers) + '</p>'
+        );
+      }
     });
-
-    if (isAllowed) {
-      next();
-    } else {
-      res.status(403).send('Forbidden: Your Windows credentials do not belong to the allowed administrator groups.');
-    }
   });
 }
 
