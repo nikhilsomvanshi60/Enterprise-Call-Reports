@@ -582,6 +582,11 @@ appMobile.get('/api/tunnel-info', (req, res) => {
 // -------------------------------------------------------------
 appDashboard.use(windowsAuthMiddleware);
 
+// Redirect root URL on Port 3001 directly to dashboard.html
+appDashboard.get('/', (req, res) => {
+  res.redirect('/dashboard.html');
+});
+
 // API: Get departments list
 appDashboard.get('/api/departments', tokenAuth, (req, res) => {
   res.json(readDepartments());
