@@ -82,7 +82,6 @@ appDashboard.use((req, res, next) => {
   }
   next();
 });
-appDashboard.use(express.static(path.join(__dirname, 'public')));
 
 // Custom IP-Based Rate Limiter per Server instance
 const ipRequestsMobile = new Map();
@@ -887,6 +886,9 @@ appDashboard.get('/api/tunnel-info', (req, res) => {
   }
   res.status(404).json({ error: 'Tunnel offline' });
 });
+
+// Serve public static assets for dashboard AFTER auth middleware filters them
+appDashboard.use(express.static(path.join(__dirname, 'public')));
 
 
 // -------------------------------------------------------------
