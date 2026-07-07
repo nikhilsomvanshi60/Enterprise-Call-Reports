@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const changePinBtn = document.getElementById('changePinBtn');
   const refreshBtn = document.getElementById('refreshBtn');
   const exportCsvBtn = document.getElementById('exportCsvBtn');
+  const logoutBtn = document.getElementById('logoutBtn');
   const searchFilter = document.getElementById('searchFilter');
   const statusFilter = document.getElementById('statusFilter');
   const dateFilter = document.getElementById('dateFilter');
@@ -1043,6 +1044,15 @@ document.addEventListener('DOMContentLoaded', () => {
     fetchReports();
   });
   exportCsvBtn.addEventListener('click', exportCSV);
+  
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', () => {
+      if (confirm('Are you sure you want to log out from this AD session?')) {
+        sessionStorage.removeItem('ad_session_token');
+        window.location.href = '/login.html';
+      }
+    });
+  }
 
   // Run Auth Check on startup
   initAuth();
