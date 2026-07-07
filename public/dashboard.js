@@ -122,70 +122,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Initialize Authentication Check
   async function initAuth() {
-    const savedPin = getAuthToken();
-    if (savedPin) {
-      const isValid = await testAuthentication(savedPin);
-      if (isValid) {
-        passcodeOverlay.style.opacity = '0';
-        passcodeOverlay.style.pointerEvents = 'none';
-
-        loadTunnelInfo();
-        fetchReports();
-        fetchDepartments();
-        fetchHolidays();
-        resetInactivityTimer(); // Start inactivity clock
-      } else {
-        localStorage.removeItem('auth_pin');
-        showPasscodePrompt();
-      }
-    } else {
-      showPasscodePrompt();
-    }
+    loadTunnelInfo();
+    fetchReports();
+    fetchDepartments();
+    fetchHolidays();
   }
-
-  function showPasscodePrompt() {
-    passcodeOverlay.style.opacity = '1';
-    passcodeOverlay.style.pointerEvents = 'auto';
-    passcodeInput.value = '';
-    passcodeInput.focus();
-    clearTimeout(inactivityTimeout); // Pause timer on passcode screen
-  }
-
-  // Handle Verify PIN Button Click
-  async function handleVerifyPIN() {
-    const enteredPin = passcodeInput.value.trim();
-    if (!enteredPin) return;
-
-    verifyPasscodeBtn.disabled = true;
-    verifyPasscodeBtn.textContent = 'Verifying...';
-    passcodeError.style.display = 'none';
-
-    const isValid = await testAuthentication(enteredPin);
-    if (isValid) {
-      localStorage.setItem('auth_pin', enteredPin);
-      passcodeOverlay.style.transition = 'opacity 0.3s ease';
-      passcodeOverlay.style.opacity = '0';
-      passcodeOverlay.style.pointerEvents = 'none';
-
-      loadTunnelInfo();
-      fetchReports();
-      fetchDepartments();
-      fetchHolidays();
-      resetInactivityTimer(); // Start timer
-    } else {
-      passcodeError.textContent = '❌ Invalid Security PIN! Try again.';
-      passcodeError.style.display = 'block';
-      passcodeInput.value = '';
-      passcodeInput.focus();
-    }
-    verifyPasscodeBtn.disabled = false;
-    verifyPasscodeBtn.textContent = 'Verify PIN';
-  }
-
-  verifyPasscodeBtn.addEventListener('click', handleVerifyPIN);
-  passcodeInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') handleVerifyPIN();
-  });
 
   // 1. Light / Dark Theme Toggle
   const currentTheme = localStorage.getItem('theme') || 'dark';
@@ -1101,8 +1042,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Auto-refresh every 30 seconds
   setInterval(() => {
-    if (getAuthToken()) {
-      fetchReports();
-    }
+    fetchReports();
   }, 30000);
 });

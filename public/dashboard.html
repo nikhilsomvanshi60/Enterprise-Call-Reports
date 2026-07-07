@@ -39,28 +39,6 @@
 
 <body>
   <div class="container">
-    <!-- Passcode Login Overlay -->
-    <div id="passcodeOverlay" class="success-overlay" style="opacity: 1; pointer-events: auto; position: fixed;">
-      <div class="logo-icon" style="margin-bottom: 1.5rem; font-size: 2rem; width: 60px; height: 60px;">🔒</div>
-      <h2>Dashboard Access</h2>
-      <p>Enter the Security PIN to access the Call Reports Dashboard.</p>
-
-      <div class="form-group"
-        style="width: 100%; max-width: 280px; margin-bottom: 1rem; flex-direction: row; justify-content: center;">
-        <input type="password" id="passcodeInput" placeholder="Enter PIN / Passcode"
-          style="text-align: center; font-size: 1.1rem; padding: 0.75rem; border-radius: 8px;" maxlength="64">
-      </div>
-
-      <button type="button" id="verifyPasscodeBtn" class="btn btn-primary"
-        style="width: 100%; max-width: 280px; margin-top: 0.5rem;">
-        Verify PIN
-      </button>
-      <div id="passcodeError"
-        style="color: var(--status-noanswer); font-size: 0.85rem; margin-top: 0.75rem; font-weight: 500; display: none;">
-        ❌ Invalid Security PIN! Try again.
-      </div>
-    </div>
-
     <!-- Theme Switcher -->
     <div class="theme-switch-wrapper">
       <button id="themeToggleBtn" class="theme-toggle-btn">

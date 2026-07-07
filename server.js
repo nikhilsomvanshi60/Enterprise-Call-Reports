@@ -604,17 +604,17 @@ appDashboard.get('/', (req, res) => {
 });
 
 // API: Get departments list
-appDashboard.get('/api/departments', tokenAuth, (req, res) => {
+appDashboard.get('/api/departments', (req, res) => {
   res.json(readDepartments());
 });
 
 // API: Get all reports (Dashboard full access)
-appDashboard.get('/api/reports', tokenAuth, (req, res) => {
+appDashboard.get('/api/reports', (req, res) => {
   res.json(readReports());
 });
 
 // API: Update report
-appDashboard.put('/api/reports/:id', tokenAuth, (req, res) => {
+appDashboard.put('/api/reports/:id', (req, res) => {
   const { id } = req.params;
   const { dateTime, user, department, problems, action, status, resolveDate, remarks } = req.body;
   if (!user || !problems || !status) return res.status(400).json({ error: 'User, Problems, and Status are required.' });
@@ -657,7 +657,7 @@ appDashboard.put('/api/reports/:id', tokenAuth, (req, res) => {
 });
 
 // API: Delete report
-appDashboard.delete('/api/reports/:id', tokenAuth, (req, res) => {
+appDashboard.delete('/api/reports/:id', (req, res) => {
   const { id } = req.params;
   const reports = readReports();
   const updated = reports.filter(r => r.id !== id);
@@ -685,7 +685,7 @@ appDashboard.delete('/api/reports/:id', tokenAuth, (req, res) => {
 });
 
 // API: Export filtered reports to styled Excel
-appDashboard.post('/api/reports/export', tokenAuth, async (req, res) => {
+appDashboard.post('/api/reports/export', async (req, res) => {
   try {
     const { filteredReports } = req.body;
     if (!Array.isArray(filteredReports)) return res.status(400).json({ error: 'Invalid reports list.' });
@@ -702,12 +702,12 @@ appDashboard.post('/api/reports/export', tokenAuth, async (req, res) => {
 });
 
 // API: Get all holidays/leaves
-appDashboard.get('/api/holidays', tokenAuth, (req, res) => {
+appDashboard.get('/api/holidays', (req, res) => {
   res.json(readHolidays());
 });
 
 // API: Save new custom holiday/leave
-appDashboard.post('/api/holidays', tokenAuth, (req, res) => {
+appDashboard.post('/api/holidays', (req, res) => {
   const { date, type, user, description } = req.body;
   if (!date || !type || !description) return res.status(400).json({ error: 'Date, Type, and Description are required.' });
   const holidays = readHolidays();
@@ -729,7 +729,7 @@ appDashboard.post('/api/holidays', tokenAuth, (req, res) => {
 });
 
 // API: Delete holiday/leave
-appDashboard.delete('/api/holidays/:id', tokenAuth, (req, res) => {
+appDashboard.delete('/api/holidays/:id', (req, res) => {
   const { id } = req.params;
   const holidays = readHolidays();
   const updated = holidays.filter(h => h.id !== id);
