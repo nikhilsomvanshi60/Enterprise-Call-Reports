@@ -913,79 +913,93 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Toggle add-holiday form
-  mobileAddHolidayBtn.addEventListener('click', () => {
-    const isVisible = mobileHolidayForm.style.display === 'flex';
-    mobileHolidayForm.style.display = isVisible ? 'none' : 'flex';
-    if (!isVisible) {
-      // Set today's date as default
-      const today = new Date().toISOString().slice(0, 10);
-      mobileHolidayDate.value = today;
-      mobileHolidayError.style.display = 'none';
-    }
-  });
-
-  cancelMobileHolidayBtn.addEventListener('click', () => {
-    mobileHolidayForm.style.display = 'none';
-    mobileHolidayError.style.display = 'none';
-  });
-
-  mobileHolidayType.addEventListener('change', () => {
-    if (mobileHolidayType.value === 'Personal Leave') {
-      mobileHolidayUserGroup.style.display = 'flex';
-    } else {
-      mobileHolidayUserGroup.style.display = 'none';
-      mobileHolidayUser.value = '';
-    }
-  });
-
-  saveMobileHolidayBtn.addEventListener('click', async () => {
-    const date = mobileHolidayDate.value;
-    const type = mobileHolidayType.value;
-    const user = mobileHolidayUser.value.trim() || 'All';
-    const description = mobileHolidayDesc.value.trim();
-
-    if (!date || !description) {
-      mobileHolidayError.textContent = '❌ Date aur Reason zaroor bharein.';
-      mobileHolidayError.style.display = 'block';
-      return;
-    }
-
-    saveMobileHolidayBtn.disabled = true;
-    saveMobileHolidayBtn.textContent = 'Saving...';
-
-    try {
-      const response = await fetch('/api/holidays', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Bypass-Tunnel-Reminder': 'true',
-          'X-Auth-Token': getAuthToken()
-        },
-        body: JSON.stringify({ date, type, user, description })
-      });
-
-      const result = await response.json();
-      if (response.ok) {
-        mobileHolidayForm.style.display = 'none';
-        mobileHolidayDate.value = '';
-        mobileHolidayDesc.value = '';
-        mobileHolidayUser.value = '';
-        mobileHolidayError.style.display = 'none';
-        await fetchMobileHolidays();
-        showToastNotification('✅ Holiday/Leave saved!');
-      } else {
-        mobileHolidayError.textContent = '❌ ' + (result.error || 'Server error.');
-        mobileHolidayError.style.display = 'block';
+  // Mobile Holidays & Leaves - Event Listeners (null-safe guards)
+  // =========================================================================
+  if (mobileAddHolidayBtn) {
+    mobileAddHolidayBtn.addEventListener('click', () => {
+      const isVisible = mobileHolidayForm && mobileHolidayForm.style.display === 'flex';
+      if (mobileHolidayForm) mobileHolidayForm.style.display = isVisible ? 'none' : 'flex';
+      if (!isVisible && mobileHolidayDate) {
+        const today = new Date().toISOString().slice(0, 10);
+        mobileHolidayDate.value = today;
       }
-    } catch (err) {
-      mobileHolidayError.textContent = '❌ Network error. Please try again.';
-      mobileHolidayError.style.display = 'block';
-    } finally {
-      saveMobileHolidayBtn.disabled = false;
-      saveMobileHolidayBtn.textContent = 'Save Holiday';
-    }
-  });
+      if (!isVisible && mobileHolidayError) mobileHolidayError.style.display = 'none';
+    });
+  }
+
+  if (cancelMobileHolidayBtn) {
+    cancelMobileHolidayBtn.addEventListener('click', () => {
+      if (mobileHolidayForm) mobileHolidayForm.style.display = 'none';
+      if (mobileHolidayError) mobileHolidayError.style.display = 'none';
+    });
+  }
+
+  if (mobileHolidayType) {
+    mobileHolidayType.addEventListener('change', () => {
+      if (mobileHolidayType.value === 'Personal Leave') {
+        if (mobileHolidayUserGroup) mobileHolidayUserGroup.style.display = 'flex';
+      } else {
+        if (mobileHolidayUserGroup) mobileHolidayUserGroup.style.display = 'none';
+        if (mobileHolidayUser) mobileHolidayUser.value = '';
+      }
+    });
+  }
+
+  if (saveMobileHolidayBtn) {
+    saveMobileHolidayBtn.addEventListener('click', async () => {
+      const date = mobileHolidayDate ? mobileHolidayDate.value : '';
+      const type = mobileHolidayType ? mobileHolidayType.value : 'Personal Leave';
+      const user = (mobileHolidayUser ? mobileHolidayUser.value.trim() : '') || 'All';
+      const description = mobileHolidayDesc ? mobileHolidayDesc.value.trim() : '';
+
+      if (!date || !description) {
+        if (mobileHolidayError) {
+          mobileHolidayError.textContent = '❌ Date aur Reason zaroor bharein.';
+          mobileHolidayError.style.display = 'block';
+        }
+        return;
+      }
+
+      saveMobileHolidayBtn.disabled = true;
+      saveMobileHolidayBtn.textContent = 'Saving...';
+
+      try {
+        const response = await fetch('/api/holidays', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Bypass-Tunnel-Reminder': 'true',
+            'X-Auth-Token': getAuthToken()
+          },
+          body: JSON.stringify({ date, type, user, description })
+        });
+
+        const result = await response.json();
+        if (response.ok) {
+          if (mobileHolidayForm) mobileHolidayForm.style.display = 'none';
+          if (mobileHolidayDate) mobileHolidayDate.value = '';
+          if (mobileHolidayDesc) mobileHolidayDesc.value = '';
+          if (mobileHolidayUser) mobileHolidayUser.value = '';
+          if (mobileHolidayError) mobileHolidayError.style.display = 'none';
+          await fetchMobileHolidays();
+          showToastNotification('✅ Holiday/Leave saved!');
+        } else {
+          if (mobileHolidayError) {
+            mobileHolidayError.textContent = '❌ ' + (result.error || 'Server error.');
+            mobileHolidayError.style.display = 'block';
+          }
+        }
+      } catch (err) {
+        if (mobileHolidayError) {
+          mobileHolidayError.textContent = '❌ Network error. Please try again.';
+          mobileHolidayError.style.display = 'block';
+        }
+      } finally {
+        saveMobileHolidayBtn.disabled = false;
+        saveMobileHolidayBtn.textContent = 'Save Holiday';
+      }
+    });
+  }
 
   // Run Auth Check on startup
   initAuth();

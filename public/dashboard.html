@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,6 +12,7 @@
     body {
       padding: 1rem 0;
     }
+
     .tunnel-badge {
       background: rgba(99, 102, 241, 0.1);
       border: 1px solid rgba(99, 102, 241, 0.3);
@@ -22,16 +24,19 @@
       align-items: center;
       gap: 0.5rem;
     }
+
     .tunnel-link {
       color: #818cf8;
       text-decoration: none;
       font-weight: 500;
     }
+
     .tunnel-link:hover {
       text-decoration: underline;
     }
   </style>
 </head>
+
 <body>
   <div class="container">
     <!-- Passcode Login Overlay -->
@@ -39,15 +44,19 @@
       <div class="logo-icon" style="margin-bottom: 1.5rem; font-size: 2rem; width: 60px; height: 60px;">🔒</div>
       <h2>Dashboard Access</h2>
       <p>Enter the Security PIN to access the Call Reports Dashboard.</p>
-      
-      <div class="form-group" style="width: 100%; max-width: 280px; margin-bottom: 1rem; flex-direction: row; justify-content: center;">
-        <input type="password" id="passcodeInput" placeholder="Enter PIN / Passcode" style="text-align: center; font-size: 1.1rem; padding: 0.75rem; border-radius: 8px;" maxlength="64">
+
+      <div class="form-group"
+        style="width: 100%; max-width: 280px; margin-bottom: 1rem; flex-direction: row; justify-content: center;">
+        <input type="password" id="passcodeInput" placeholder="Enter PIN / Passcode"
+          style="text-align: center; font-size: 1.1rem; padding: 0.75rem; border-radius: 8px;" maxlength="64">
       </div>
-      
-      <button type="button" id="verifyPasscodeBtn" class="btn btn-primary" style="width: 100%; max-width: 280px; margin-top: 0.5rem;">
+
+      <button type="button" id="verifyPasscodeBtn" class="btn btn-primary"
+        style="width: 100%; max-width: 280px; margin-top: 0.5rem;">
         Verify PIN
       </button>
-      <div id="passcodeError" style="color: var(--status-noanswer); font-size: 0.85rem; margin-top: 0.75rem; font-weight: 500; display: none;">
+      <div id="passcodeError"
+        style="color: var(--status-noanswer); font-size: 0.85rem; margin-top: 0.75rem; font-weight: 500; display: none;">
         ❌ Invalid Security PIN! Try again.
       </div>
     </div>
@@ -64,11 +73,11 @@
       <div class="dashboard-logo">
         <div class="logo-icon">📊</div>
         <div>
-          <h1>Reports & Issues Dashboard</h1>
+          <h1>IT-Daily Call Report Dashboard</h1>
           <p class="subtitle" style="margin: 0;">PC database manager & analytics</p>
         </div>
       </div>
-      
+
       <!-- Tunnel Status Indicator -->
       <div id="tunnelStatus" class="tunnel-badge">
         <span class="dot" style="background: var(--text-muted); width: 8px; height: 8px;"></span>
@@ -80,11 +89,23 @@
           🔑 Change PIN
         </button>
         <button id="refreshBtn" class="btn btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.85rem;">
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path><path d="M16 3h5v5"></path><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path><path d="M8 21H3v-5"></path></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path>
+            <path d="M16 3h5v5"></path>
+            <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path>
+            <path d="M8 21H3v-5"></path>
+          </svg>
           Refresh
         </button>
-        <button id="exportCsvBtn" class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 0.85rem; margin-top: 0;">
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+        <button id="exportCsvBtn" class="btn btn-primary"
+          style="padding: 0.5rem 1rem; font-size: 0.85rem; margin-top: 0;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
           Export Excel (Styled)
         </button>
       </div>
@@ -132,72 +153,78 @@
       <div class="chart-card" style="max-height: 300px; display: flex; flex-direction: column;">
         <h3>Recent Activity Feed</h3>
         <div id="activityTimeline" class="timeline-list" style="flex: 1; overflow-y: auto; padding-right: 0.25rem;">
-          <p style="color: var(--text-muted); font-size: 0.85rem; text-align: center; margin-top: 2rem;">No recent activities.</p>
+          <p style="color: var(--text-muted); font-size: 0.85rem; text-align: center; margin-top: 2rem;">No recent
+            activities.</p>
         </div>
       </div>
     </div>
 
     <!-- Dashboard Tabs Navigation -->
-    <div style="display: flex; gap: 0.5rem; margin-bottom: 1.25rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">
-      <button id="tabReportsBtn" class="theme-toggle-btn active-tab" style="border-radius: 8px; padding: 0.6rem 1.25rem; font-weight: 600; cursor: pointer; border: 1px solid var(--primary); background: rgba(99, 102, 241, 0.1); color: var(--primary);">📋 Reports Log</button>
-      <button id="tabHolidaysBtn" class="theme-toggle-btn" style="border-radius: 8px; padding: 0.6rem 1.25rem; font-weight: 600; cursor: pointer; border: 1px solid transparent; background: transparent; color: var(--text-secondary);">📅 Holidays & Leaves</button>
+    <div
+      style="display: flex; gap: 0.5rem; margin-bottom: 1.25rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">
+      <button id="tabReportsBtn" class="theme-toggle-btn active-tab"
+        style="border-radius: 8px; padding: 0.6rem 1.25rem; font-weight: 600; cursor: pointer; border: 1px solid var(--primary); background: rgba(99, 102, 241, 0.1); color: var(--primary);">📋
+        Reports Log</button>
+      <button id="tabHolidaysBtn" class="theme-toggle-btn"
+        style="border-radius: 8px; padding: 0.6rem 1.25rem; font-weight: 600; cursor: pointer; border: 1px solid transparent; background: transparent; color: var(--text-secondary);">📅
+        Holidays & Leaves</button>
     </div>
 
     <!-- TAB 1 CONTENT: REPORTS LOG -->
     <div id="tabReportsContent">
       <!-- Interactive Filters Panel -->
       <div class="filters-panel">
-      <!-- Search Input -->
-      <div class="filter-group" style="flex-grow: 2;">
-        <label for="searchFilter" style="display: none;">Search</label>
-        <input type="text" id="searchFilter" placeholder="Search user, department, problems, actions, remarks...">
+        <!-- Search Input -->
+        <div class="filter-group" style="flex-grow: 2;">
+          <label for="searchFilter" style="display: none;">Search</label>
+          <input type="text" id="searchFilter" placeholder="Search user, department, problems, actions, remarks...">
+        </div>
+
+        <!-- Status Filter -->
+        <div class="filter-group">
+          <label for="statusFilter">Status</label>
+          <select id="statusFilter">
+            <option value="ALL">All Statuses</option>
+            <option value="Pending">Pending</option>
+            <option value="In Progress">In Progress</option>
+            <option value="Resolved">Resolved</option>
+          </select>
+        </div>
+
+        <!-- Date Filter -->
+        <div class="filter-group">
+          <label for="dateFilter">Timeframe</label>
+          <select id="dateFilter">
+            <option value="ALL">All Time</option>
+            <option value="TODAY">Today</option>
+            <option value="YESTERDAY">Yesterday</option>
+            <option value="WEEK">Last 7 Days</option>
+            <option value="MONTH">Last 30 Days</option>
+          </select>
+        </div>
       </div>
 
-      <!-- Status Filter -->
-      <div class="filter-group">
-        <label for="statusFilter">Status</label>
-        <select id="statusFilter">
-          <option value="ALL">All Statuses</option>
-          <option value="Pending">Pending</option>
-          <option value="In Progress">In Progress</option>
-          <option value="Resolved">Resolved</option>
-        </select>
+      <!-- Reports Table -->
+      <div class="table-container">
+        <table id="reportsTable">
+          <thead>
+            <tr>
+              <th style="width: 160px;">Date</th>
+              <th>User</th>
+              <th>Department</th>
+              <th style="width: 130px;">Status</th>
+              <th style="width: 130px;">Resolve Date</th>
+              <th style="width: 100px; text-align: center;">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="reportsTableBody">
+            <!-- Populated dynamically via JS -->
+            <tr>
+              <td colspan="6" class="no-data-msg">Loading call records...</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
-
-      <!-- Date Filter -->
-      <div class="filter-group">
-        <label for="dateFilter">Timeframe</label>
-        <select id="dateFilter">
-          <option value="ALL">All Time</option>
-          <option value="TODAY">Today</option>
-          <option value="YESTERDAY">Yesterday</option>
-          <option value="WEEK">Last 7 Days</option>
-          <option value="MONTH">Last 30 Days</option>
-        </select>
-      </div>
-    </div>
-
-    <!-- Reports Table -->
-    <div class="table-container">
-      <table id="reportsTable">
-        <thead>
-          <tr>
-            <th style="width: 160px;">Date</th>
-            <th>User</th>
-            <th>Department</th>
-            <th style="width: 130px;">Status</th>
-            <th style="width: 130px;">Resolve Date</th>
-            <th style="width: 100px; text-align: center;">Actions</th>
-          </tr>
-        </thead>
-        <tbody id="reportsTableBody">
-          <!-- Populated dynamically via JS -->
-          <tr>
-            <td colspan="6" class="no-data-msg">Loading call records...</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
     </div> <!-- Close tabReportsContent -->
 
     <!-- TAB 2 CONTENT: HOLIDAYS & LEAVES -->
@@ -206,41 +233,49 @@
         <!-- Left Side: Add Holiday/Leave Form -->
         <div class="chart-card" style="flex: 1; min-width: 300px; padding: 1.5rem;">
           <h3 style="margin-top: 0;">Declare Holiday or Leave</h3>
-          <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.25rem; line-height: 1.5;">Add a custom public holiday, company festival, or personal user leave. These will show inline in Excel exports with "Aaj nahi aana aapa unga" styling.</p>
-          
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.25rem; line-height: 1.5;">Add a
+            custom public holiday, company festival, or personal user leave. These will show inline in Excel exports
+            with "Aaj nahi aana aapa unga" styling.</p>
+
           <form id="holidayForm" style="display: flex; flex-direction: column; gap: 1rem;">
             <div class="form-group" style="width: auto; max-width: none;">
               <label for="holidayDate">Date *</label>
-              <input type="date" id="holidayDate" required style="padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border-color); background: rgba(255, 255, 255, 0.05); color: var(--text-primary); font-family: 'Outfit'; width: 100%;">
+              <input type="date" id="holidayDate" required
+                style="padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border-color); background: rgba(255, 255, 255, 0.05); color: var(--text-primary); font-family: 'Outfit'; width: 100%;">
             </div>
-            
+
             <div class="form-group" style="width: auto; max-width: none;">
               <label for="holidayType">Type *</label>
-              <select id="holidayType" required style="padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border-color); background: rgba(255, 255, 255, 0.05); color: var(--text-primary); font-family: 'Outfit'; width: 100%;">
+              <select id="holidayType" required
+                style="padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border-color); background: rgba(255, 255, 255, 0.05); color: var(--text-primary); font-family: 'Outfit'; width: 100%;">
                 <option value="Personal Leave">Personal Leave (Chuti)</option>
                 <option value="Festival Holiday">Festival Holiday (Tyohar)</option>
                 <option value="Company Event">Company Event (Program)</option>
               </select>
             </div>
-            
+
             <div class="form-group" style="width: auto; max-width: none;" id="holidayUserGroup">
               <label for="holidayUser">User Name (if Personal Leave)</label>
-              <input type="text" id="holidayUser" placeholder="e.g. Amit" style="padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border-color); background: rgba(255, 255, 255, 0.05); color: var(--text-primary); font-family: 'Outfit'; width: 100%;">
+              <input type="text" id="holidayUser" placeholder="e.g. Amit"
+                style="padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border-color); background: rgba(255, 255, 255, 0.05); color: var(--text-primary); font-family: 'Outfit'; width: 100%;">
             </div>
-            
+
             <div class="form-group" style="width: auto; max-width: none;">
               <label for="holidayDesc">Reason / Details *</label>
-              <input type="text" id="holidayDesc" placeholder="e.g. Sick Leave / Diwali Holiday" required style="padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border-color); background: rgba(255, 255, 255, 0.05); color: var(--text-primary); font-family: 'Outfit'; width: 100%;">
+              <input type="text" id="holidayDesc" placeholder="e.g. Sick Leave / Diwali Holiday" required
+                style="padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border-color); background: rgba(255, 255, 255, 0.05); color: var(--text-primary); font-family: 'Outfit'; width: 100%;">
             </div>
-            
-            <button type="submit" class="btn btn-primary" style="margin: 0.5rem 0 0 0; padding: 0.75rem; width: 100%;">Add Holiday / Leave</button>
+
+            <button type="submit" class="btn btn-primary"
+              style="margin: 0.5rem 0 0 0; padding: 0.75rem; width: 100%;">Add Holiday / Leave</button>
           </form>
         </div>
-        
+
         <!-- Right Side: Current Holidays & Leaves List -->
-        <div class="chart-card" style="flex: 2; min-width: 400px; padding: 1.5rem; display: flex; flex-direction: column;">
+        <div class="chart-card"
+          style="flex: 2; min-width: 400px; padding: 1.5rem; display: flex; flex-direction: column;">
           <h3 style="margin-top: 0;">Declared Holidays & Leaves</h3>
-          
+
           <div class="table-container" style="flex: 1; margin-top: 1rem; overflow-y: auto; max-height: 400px;">
             <table id="holidaysTable">
               <thead>
@@ -272,7 +307,7 @@
         </div>
         <form id="editForm">
           <input type="hidden" id="editReportId">
-          
+
           <div class="form-row">
             <div class="form-group">
               <label for="editDateTime">Date *</label>
@@ -322,8 +357,10 @@
           </div>
 
           <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
-            <button type="button" id="cancelEditBtn" class="btn btn-secondary" style="flex: 1; padding: 0.75rem;">Cancel</button>
-            <button type="submit" class="btn btn-primary" style="flex: 2; padding: 0.75rem; margin-top: 0;">Save Changes</button>
+            <button type="button" id="cancelEditBtn" class="btn btn-secondary"
+              style="flex: 1; padding: 0.75rem;">Cancel</button>
+            <button type="submit" class="btn btn-primary" style="flex: 2; padding: 0.75rem; margin-top: 0;">Save
+              Changes</button>
           </div>
         </form>
       </div>
@@ -339,24 +376,30 @@
         <form id="pinForm">
           <div class="form-group">
             <label for="currentPinInput">Current PIN *</label>
-            <input type="password" id="currentPinInput" placeholder="••••" required style="text-align: center; font-size: 1.25rem;">
+            <input type="password" id="currentPinInput" placeholder="••••" required
+              style="text-align: center; font-size: 1.25rem;">
           </div>
           <div class="form-group">
             <label for="newPinInput">New PIN *</label>
-            <input type="password" id="newPinInput" placeholder="••••" required style="text-align: center; font-size: 1.25rem;" minlength="4" maxlength="8">
+            <input type="password" id="newPinInput" placeholder="••••" required
+              style="text-align: center; font-size: 1.25rem;" minlength="4" maxlength="8">
           </div>
           <div class="form-group">
             <label for="confirmPinInput">Confirm New PIN *</label>
-            <input type="password" id="confirmPinInput" placeholder="••••" required style="text-align: center; font-size: 1.25rem;" minlength="4" maxlength="8">
+            <input type="password" id="confirmPinInput" placeholder="••••" required
+              style="text-align: center; font-size: 1.25rem;" minlength="4" maxlength="8">
           </div>
-          
-          <div id="pinError" style="color: var(--status-noanswer); font-size: 0.85rem; margin-bottom: 1rem; font-weight: 500; display: none; text-align: center;">
+
+          <div id="pinError"
+            style="color: var(--status-noanswer); font-size: 0.85rem; margin-bottom: 1rem; font-weight: 500; display: none; text-align: center;">
             ❌ Error message here
           </div>
 
           <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
-            <button type="button" id="cancelPinBtn" class="btn btn-secondary" style="flex: 1; padding: 0.75rem;">Cancel</button>
-            <button type="submit" class="btn btn-primary" style="flex: 2; padding: 0.75rem; margin-top: 0;">Update PIN</button>
+            <button type="button" id="cancelPinBtn" class="btn btn-secondary"
+              style="flex: 1; padding: 0.75rem;">Cancel</button>
+            <button type="submit" class="btn btn-primary" style="flex: 2; padding: 0.75rem; margin-top: 0;">Update
+              PIN</button>
           </div>
         </form>
       </div>
@@ -366,4 +409,5 @@
 
   <script src="dashboard.js"></script>
 </body>
+
 </html>
