@@ -223,7 +223,7 @@
           // Save the temporary secure session token in sessionStorage
           sessionStorage.setItem('ad_session_token', result.token);
           // Redirect directly to dashboard
-          window.location.href = '/dashboard.html';
+          window.location.href = `/dashboard.html?token=${encodeURIComponent(result.token)}`;
         } else {
           errorBox.textContent = '❌ ' + (result.error || 'Access Denied: Invalid credentials.');
           errorBox.style.display = 'block';

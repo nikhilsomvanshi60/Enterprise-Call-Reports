@@ -38,6 +38,14 @@
 </head>
 
 <body>
+  <div class="ambient-stage" aria-hidden="true">
+    <span class="ambient-ribbon ribbon-a"></span>
+    <span class="ambient-ribbon ribbon-b"></span>
+    <span class="ambient-ribbon ribbon-c"></span>
+    <span class="ambient-line line-a"></span>
+    <span class="ambient-line line-b"></span>
+  </div>
+
   <div class="container">
     <!-- Theme Switcher -->
     <div class="theme-switch-wrapper">
@@ -63,6 +71,9 @@
       </div>
 
       <div class="header-actions">
+        <button id="accessUsersBtn" class="btn btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.85rem;">
+          Access Users
+        </button>
         <button id="changePinBtn" class="btn btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.85rem;">
           🔑 Change PIN
         </button>
@@ -119,7 +130,10 @@
     <!-- Analytics Charts Section -->
     <div class="charts-section">
       <div class="chart-card">
-        <h3>Issues by Department</h3>
+        <div class="chart-title-row">
+          <h3>Issues by Department</h3>
+          <span id="deptChartMeta" class="chart-meta">Ranked by volume</span>
+        </div>
         <div class="chart-container">
           <canvas id="deptChart"></canvas>
         </div>
@@ -275,6 +289,43 @@
               </tbody>
             </table>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Access Users Modal -->
+    <div id="accessUsersModal" class="modal-overlay">
+      <div class="modal-card" style="max-width: 520px;">
+        <div class="modal-header">
+          <h3>Allowed Dashboard Users</h3>
+          <button id="closeAccessUsersModalBtn" class="close-modal-btn">&times;</button>
+        </div>
+
+        <form id="accessUserForm" style="display: flex; gap: 0.75rem; align-items: flex-end; margin-bottom: 1rem;">
+          <div class="form-group" style="flex: 1; margin-bottom: 0;">
+            <label for="accessUserInput">Domain User</label>
+            <input type="text" id="accessUserInput" placeholder="DOMAIN\\username or username" required>
+          </div>
+          <button type="submit" class="btn btn-primary" style="width: auto; padding: 0.75rem 1rem; margin-top: 0;">Add</button>
+        </form>
+
+        <div id="accessUsersError"
+          style="display: none; color: var(--status-noanswer); font-size: 0.85rem; margin-bottom: 1rem; font-weight: 500;"></div>
+
+        <div class="table-container" style="margin-top: 0; max-height: 320px; overflow-y: auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>User</th>
+                <th style="width: 90px; text-align: center;">Action</th>
+              </tr>
+            </thead>
+            <tbody id="accessUsersTableBody">
+              <tr>
+                <td colspan="2" class="no-data-msg">Loading allowed users...</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

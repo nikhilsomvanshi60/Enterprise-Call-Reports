@@ -4,10 +4,8 @@
   "dashboardPort": 3001,
   "allowedDomainUsers": [
     ".\\Administrator",
-    "Domain Admins",
-    "IT-Staff",
-    "BUILTIN\\Administrators",
     "infodba"
   ],
+  "allowedDomainGroups": [],
   "enableADAuth": true
 }

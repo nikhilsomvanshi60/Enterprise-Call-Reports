@@ -5,6 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let reports = [];
   let departments = [];
   let holidaysData = [];
+  let allowedUsers = [];
   let deptChartInstance = null;
   let statusChartInstance = null;
 
@@ -18,6 +19,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const dateFilter = document.getElementById('dateFilter');
   const tableBody = document.getElementById('reportsTableBody');
   const tunnelStatusEl = document.getElementById('tunnelStatus');
+  const accessUsersBtn = document.getElementById('accessUsersBtn');
+  const accessUsersModal = document.getElementById('accessUsersModal');
+  const closeAccessUsersModalBtn = document.getElementById('closeAccessUsersModalBtn');
+  const accessUserForm = document.getElementById('accessUserForm');
+  const accessUserInput = document.getElementById('accessUserInput');
+  const accessUsersError = document.getElementById('accessUsersError');
+  const accessUsersTableBody = document.getElementById('accessUsersTableBody');
 
   // Theme Elements
   const themeToggleBtn = document.getElementById('themeToggleBtn');
@@ -72,15 +80,65 @@ document.addEventListener('DOMContentLoaded', () => {
   const statTotalDuration = document.getElementById('statTotalDuration');
   const statAvgDuration = document.getElementById('statAvgDuration');
 
-  // Global Auth storage helper
+  function captureTokenFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+    if (!token) return;
+
+    sessionStorage.setItem('ad_session_token', token);
+    params.delete('token');
+    const cleanQuery = params.toString();
+    const cleanUrl = `${window.location.pathname}${cleanQuery ? `?${cleanQuery}` : ''}${window.location.hash}`;
+    window.history.replaceState({}, document.title, cleanUrl);
+  }
+
+  captureTokenFromUrl();
+
   function getADSessionToken() {
     return sessionStorage.getItem('ad_session_token') || '';
   }
 
-  // Retrieve the temporary Active Directory/Windows login session token
-  function getADSessionToken() {
-    return sessionStorage.getItem('ad_session_token') || '';
+  function initPointerEffects() {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    let frameId = null;
+    let nextX = window.innerWidth / 2;
+    let nextY = window.innerHeight * 0.18;
+
+    window.addEventListener('pointermove', (e) => {
+      nextX = e.clientX;
+      nextY = e.clientY;
+      if (frameId) return;
+      frameId = requestAnimationFrame(() => {
+        const parallaxX = (nextX - window.innerWidth / 2) * 0.018;
+        const parallaxY = (nextY - window.innerHeight / 2) * 0.018;
+        document.documentElement.style.setProperty('--cursor-x', `${nextX}px`);
+        document.documentElement.style.setProperty('--cursor-y', `${nextY}px`);
+        document.documentElement.style.setProperty('--parallax-x', `${parallaxX.toFixed(2)}px`);
+        document.documentElement.style.setProperty('--parallax-y', `${parallaxY.toFixed(2)}px`);
+        document.documentElement.style.setProperty('--parallax-x-neg', `${(-parallaxX).toFixed(2)}px`);
+        document.documentElement.style.setProperty('--parallax-y-neg', `${(-parallaxY).toFixed(2)}px`);
+        frameId = null;
+      });
+    }, { passive: true });
+
+    document.querySelectorAll('.stat-card, .chart-card').forEach(card => {
+      card.addEventListener('pointermove', (e) => {
+        const rect = card.getBoundingClientRect();
+        const x = (e.clientX - rect.left) / rect.width - 0.5;
+        const y = (e.clientY - rect.top) / rect.height - 0.5;
+        card.style.setProperty('--tilt-x', `${(-y * 3).toFixed(2)}deg`);
+        card.style.setProperty('--tilt-y', `${(x * 3).toFixed(2)}deg`);
+      }, { passive: true });
+
+      card.addEventListener('pointerleave', () => {
+        card.style.setProperty('--tilt-x', '0deg');
+        card.style.setProperty('--tilt-y', '0deg');
+      });
+    });
   }
+
+  initPointerEffects();
 
   // Initialize Authentication Check
   async function initAuth() {
@@ -113,6 +171,94 @@ document.addEventListener('DOMContentLoaded', () => {
     fetchReports();
     fetchDepartments();
     fetchHolidays();
+  }
+
+  function showAccessUsersError(message) {
+    if (!accessUsersError) return;
+    accessUsersError.textContent = message || '';
+    accessUsersError.style.display = message ? 'block' : 'none';
+  }
+
+  async function fetchAllowedUsers() {
+    if (!accessUsersTableBody) return;
+    try {
+      const response = await fetch('/api/access/users', {
+        headers: {
+          'Authorization': getADSessionToken(),
+          'Bypass-Tunnel-Reminder': 'true'
+        }
+      });
+      if (!response.ok) throw new Error('Unable to load users');
+      const result = await response.json();
+      allowedUsers = Array.isArray(result.users) ? result.users : [];
+      renderAllowedUsers();
+    } catch (err) {
+      accessUsersTableBody.innerHTML = '<tr><td colspan="2" class="no-data-msg">Unable to load users.</td></tr>';
+    }
+  }
+
+  function renderAllowedUsers() {
+    if (!accessUsersTableBody) return;
+    if (!allowedUsers.length) {
+      accessUsersTableBody.innerHTML = '<tr><td colspan="2" class="no-data-msg">No users selected.</td></tr>';
+      return;
+    }
+
+    accessUsersTableBody.innerHTML = allowedUsers.map(user => {
+      const protectedUser = user.toLowerCase() === '.\\administrator';
+      return `
+        <tr>
+          <td style="font-weight: 600;">${escapeHTML(user)}${protectedUser ? ' <span style="color: var(--text-muted); font-weight: 500;">(local)</span>' : ''}</td>
+          <td style="text-align: center;">
+            ${protectedUser
+              ? '<span style="color: var(--text-muted); font-size: 0.8rem;">Locked</span>'
+              : `<button class="btn-remove-access-user btn-action" data-user="${escapeHTML(user)}" style="background: none; border: none; cursor: pointer; color: var(--status-noanswer); font-weight: 700;">Remove</button>`}
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    accessUsersTableBody.querySelectorAll('.btn-remove-access-user').forEach(btn => {
+      btn.addEventListener('click', () => removeAllowedUser(btn.dataset.user));
+    });
+  }
+
+  async function addAllowedUser(user) {
+    showAccessUsersError('');
+    const response = await fetch('/api/access/users', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': getADSessionToken(),
+        'Bypass-Tunnel-Reminder': 'true'
+      },
+      body: JSON.stringify({ user })
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Failed to add user.');
+    allowedUsers = result.users || [];
+    renderAllowedUsers();
+  }
+
+  async function removeAllowedUser(user) {
+    if (!confirm(`Remove dashboard access for ${user}?`)) return;
+    showAccessUsersError('');
+    const response = await fetch('/api/access/users', {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': getADSessionToken(),
+        'Bypass-Tunnel-Reminder': 'true'
+      },
+      body: JSON.stringify({ user })
+    });
+    const result = await response.json();
+    if (!response.ok) {
+      showAccessUsersError(result.error || 'Failed to remove user.');
+      return;
+    }
+    allowedUsers = result.users || [];
+    renderAllowedUsers();
   }
 
   // 1. Light / Dark Theme Toggle
@@ -173,52 +319,112 @@ document.addEventListener('DOMContentLoaded', () => {
   function renderCharts(filteredData) {
     const isLight = document.body.classList.contains('light-theme');
     const labelColor = isLight ? '#09090b' : '#f4f4f5';
-    const gridColor = isLight ? 'rgba(9, 9, 11, 0.05)' : 'rgba(255, 255, 255, 0.05)';
+    const mutedColor = isLight ? '#52525b' : '#a1a1aa';
+    const gridColor = isLight ? 'rgba(9, 9, 11, 0.08)' : 'rgba(255, 255, 255, 0.07)';
 
-    // A. Aggregate Departments
-    let depts = [...departments];
-    if (depts.length === 0) {
-      depts = Array.from(new Set(reports.map(r => r.department).filter(Boolean)));
-    }
-    if (depts.length === 0) {
-      depts = ['Design', 'Electrical Design', 'Account', 'QC', 'Store', 'Marketing', 'Service'];
-    }
-    const deptCounts = depts.map(d => filteredData.filter(r => r.department === d).length);
-
-    const ctxDept = document.getElementById('deptChart').getContext('2d');
+    // A. Aggregate Departments as a ranked horizontal chart
+    const deptCanvas = document.getElementById('deptChart');
+    const deptMeta = document.getElementById('deptChartMeta');
+    const ctxDept = deptCanvas.getContext('2d');
     if (deptChartInstance) {
       deptChartInstance.destroy();
     }
 
+    const knownDepts = departments.length ? departments : Array.from(new Set(reports.map(r => r.department).filter(Boolean)));
+    const deptMap = new Map(knownDepts.map(dept => [dept, 0]));
+    filteredData.forEach(report => {
+      const dept = report.department || 'Unassigned';
+      deptMap.set(dept, (deptMap.get(dept) || 0) + 1);
+    });
+
+    let deptRows = Array.from(deptMap.entries())
+      .map(([name, count]) => ({ name, count }))
+      .filter(row => row.count > 0)
+      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+
+    const totalDeptIssues = deptRows.reduce((sum, row) => sum + row.count, 0);
+    const hiddenDeptCount = Math.max(0, deptRows.length - 8);
+    deptRows = deptRows.slice(0, 8);
+
+    if (deptMeta) {
+      deptMeta.textContent = totalDeptIssues
+        ? `${totalDeptIssues} issues${hiddenDeptCount ? `, top 8 shown` : ''}`
+        : 'No matching issues';
+    }
+
+    const deptLabels = deptRows.length ? deptRows.map(row => row.name) : ['No issues'];
+    const deptCounts = deptRows.length ? deptRows.map(row => row.count) : [0];
+    const maxDeptCount = Math.max(1, ...deptCounts);
+    const deptPalette = ['#2563eb', '#14b8a6', '#f59e0b', '#ef4444', '#8b5cf6', '#22c55e', '#f97316', '#06b6d4'];
+    const deptColors = deptCounts.map((_, index) => deptRows.length ? deptPalette[index % deptPalette.length] : 'rgba(161, 161, 170, 0.28)');
+
     deptChartInstance = new Chart(ctxDept, {
       type: 'bar',
       data: {
-        labels: depts,
+        labels: deptLabels,
         datasets: [{
           label: 'Issues Reported',
           data: deptCounts,
-          backgroundColor: '#6366f1',
-          borderColor: '#4f46e5',
+          backgroundColor: deptColors,
+          borderColor: deptColors,
           borderWidth: 1,
-          borderRadius: 4
+          borderRadius: 6,
+          borderSkipped: false,
+          barThickness: 18,
+          maxBarThickness: 22
         }]
       },
       options: {
+        indexAxis: 'y',
         responsive: true,
         maintainAspectRatio: false,
+        animation: {
+          duration: 650,
+          easing: 'easeOutQuart'
+        },
         plugins: {
           legend: { display: false },
-          tooltip: { enabled: true }
+          tooltip: {
+            displayColors: false,
+            backgroundColor: isLight ? '#ffffff' : '#18181b',
+            titleColor: labelColor,
+            bodyColor: mutedColor,
+            borderColor: isLight ? 'rgba(9, 9, 11, 0.12)' : 'rgba(255, 255, 255, 0.12)',
+            borderWidth: 1,
+            padding: 12,
+            callbacks: {
+              label: (context) => {
+                const value = context.parsed.x || 0;
+                const pct = totalDeptIssues ? Math.round((value / totalDeptIssues) * 100) : 0;
+                return `${value} issue${value === 1 ? '' : 's'} • ${pct}% of current view`;
+              }
+            }
+          }
         },
         scales: {
           x: {
             grid: { color: gridColor },
-            ticks: { color: labelColor, font: { family: 'Outfit' } }
+            ticks: {
+              color: mutedColor,
+              precision: 0,
+              stepSize: maxDeptCount <= 8 ? 1 : undefined,
+              font: { family: 'Outfit', size: 11 }
+            },
+            suggestedMax: maxDeptCount + 1,
+            beginAtZero: true,
+            border: { display: false }
           },
           y: {
-            grid: { color: gridColor },
-            ticks: { color: labelColor, stepSize: 1, font: { family: 'Outfit' } },
-            beginAtZero: true
+            grid: { display: false },
+            ticks: {
+              color: labelColor,
+              font: { family: 'Outfit', size: 12, weight: 600 },
+              callback: function(value) {
+                const label = this.getLabelForValue(value);
+                return label.length > 16 ? `${label.slice(0, 15)}...` : label;
+              }
+            },
+            border: { display: false }
           }
         }
       }
@@ -635,7 +841,7 @@ document.addEventListener('DOMContentLoaded', () => {
         headers: {
           'Content-Type': 'application/json',
           'Bypass-Tunnel-Reminder': 'true',
-          'X-Auth-Token': getAuthToken()
+          'Authorization': getADSessionToken()
         },
         body: JSON.stringify({ currentPin, newPin })
       });
@@ -1012,34 +1218,43 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-    try {
-      const response = await fetch('/api/holidays', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Bypass-Tunnel-Reminder': 'true',
-          'Authorization': getADSessionToken()
-        },
-        body: JSON.stringify(payload)
-      });
-
-      const result = await response.json();
-      if (response.ok) {
-        holidayForm.reset();
-        holidayUserGroup.style.display = 'flex';
-        holidayUser.required = true;
-        
-        fetchHolidays();
-      } else {
-        alert('Failed: ' + (result.error || 'Server error'));
-      }
-    } catch (err) {
-      console.error('Add holiday error:', err);
-      alert('Failed to add holiday due to a network error.');
-    }
-  });
-
   // Action events
+  if (accessUsersBtn) {
+    accessUsersBtn.addEventListener('click', () => {
+      showAccessUsersError('');
+      accessUsersModal.classList.add('show');
+      fetchAllowedUsers();
+      setTimeout(() => accessUserInput && accessUserInput.focus(), 50);
+    });
+  }
+
+  if (closeAccessUsersModalBtn) {
+    closeAccessUsersModalBtn.addEventListener('click', () => {
+      accessUsersModal.classList.remove('show');
+    });
+  }
+
+  if (accessUsersModal) {
+    accessUsersModal.addEventListener('click', (e) => {
+      if (e.target === accessUsersModal) accessUsersModal.classList.remove('show');
+    });
+  }
+
+  if (accessUserForm) {
+    accessUserForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const user = accessUserInput.value.trim();
+      if (!user) return;
+      try {
+        await addAllowedUser(user);
+        accessUserInput.value = '';
+        accessUserInput.focus();
+      } catch (err) {
+        showAccessUsersError(err.message || 'Failed to add user.');
+      }
+    });
+  }
+
   refreshBtn.addEventListener('click', () => {
     fetchReports();
   });
