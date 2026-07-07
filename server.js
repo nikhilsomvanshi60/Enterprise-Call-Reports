@@ -74,6 +74,14 @@ appMobile.use((req, res, next) => {
 appMobile.use(express.static(path.join(__dirname, 'public')));
 
 // appDashboard serves dashboard-specific files securely
+// Restrict appDashboard from serving index.html (the mobile app) to keep them clean
+appDashboard.use((req, res, next) => {
+  const filePath = req.path.toLowerCase();
+  if (filePath === '/' || filePath === '/index.html') {
+    return res.redirect('/dashboard.html');
+  }
+  next();
+});
 appDashboard.use(express.static(path.join(__dirname, 'public')));
 
 // Custom IP-Based Rate Limiter per Server instance
