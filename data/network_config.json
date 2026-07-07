@@ -3,7 +3,7 @@
   "mobilePort": 3000,
   "dashboardPort": 3001,
   "allowedDomainUsers": [
-    "Administrator",
+    ".\\Administrator",
     "Domain Admins",
     "IT-Staff",
     "BUILTIN\\Administrators",

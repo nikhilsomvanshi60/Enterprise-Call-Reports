@@ -149,18 +149,18 @@ function validateWindowsCredentials(domain, username, password) {
       // Local Machine validation context
       psScript = `
         Add-Type -AssemblyName System.DirectoryServices.AccountManagement
-        $pc = New-Object System.DirectoryServices.AccountManagement.PrincipalContext([System.DirectoryServices.AccountManagement.ContextType]::Machine)
-        $valid = $pc.ValidateCredentials('${safeUser}', '${safePass}')
-        Write-Output $valid
+        \`$pc = New-Object System.DirectoryServices.AccountManagement.PrincipalContext([System.DirectoryServices.AccountManagement.ContextType]::Machine)
+        \`$valid = \`$pc.ValidateCredentials('${safeUser}', '${safePass}')
+        Write-Output \`$valid
       `;
     } else {
       // Active Directory Domain validation context
       psScript = `
         Add-Type -AssemblyName System.DirectoryServices.AccountManagement
         try {
-          $pc = New-Object System.DirectoryServices.AccountManagement.PrincipalContext([System.DirectoryServices.AccountManagement.ContextType]::Domain, '${safeDomain}')
-          $valid = $pc.ValidateCredentials('${safeUser}', '${safePass}')
-          Write-Output $valid
+          \`$pc = New-Object System.DirectoryServices.AccountManagement.PrincipalContext([System.DirectoryServices.AccountManagement.ContextType]::Domain, '${safeDomain}')
+          \`$valid = \`$pc.ValidateCredentials('${safeUser}', '${safePass}')
+          Write-Output \`$valid
         } catch {
           Write-Output "False"
         }
