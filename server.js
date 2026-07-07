@@ -106,37 +106,107 @@ appDashboard.use(rateLimiter(ipRequestsDashboard, 60));
 // -------------------------------------------------------------
 // ACTIVE DIRECTORY & LOCAL WINDOWS USER AUTH MIDDLEWARE
 // -------------------------------------------------------------
+const ACTIVE_SESSIONS = new Map(); // Store temporary tokens
+
+// Middleware to protect Port 3001 Dashboard assets
 function windowsAuthMiddleware(req, res, next) {
   if (!netConfig.enableADAuth) {
     return next();
   }
 
-  // Check 1: Check groups via whoami /groups
-  exec('whoami /groups', (errGroups, stdoutGroups, stderrGroups) => {
-    // Check 2: Check username via whoami
-    exec('whoami', (errUser, stdoutUser, stderrUser) => {
-      const groupsOutput = errGroups ? '' : stdoutGroups;
-      const userOutput = errUser ? '' : stdoutUser.trim();
+  // Allow login.html and the login API without authentication
+  const pathLower = req.path.toLowerCase();
+  if (pathLower.includes('login.html') || pathLower === '/api/auth/domain-login' || pathLower.includes('style.css')) {
+    return next();
+  }
 
-      const isAllowedGroup = netConfig.allowedDomainUsers.some(allowedUserOrGroup => {
-        const reg = new RegExp('\\b' + allowedUserOrGroup.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '\\b', 'i');
-        return reg.test(groupsOutput);
+  // Check for session token
+  const token = req.headers['authorization'] || req.query.token;
+  if (token && ACTIVE_SESSIONS.has(token)) {
+    const session = ACTIVE_SESSIONS.get(token);
+    // Refresh session timestamp
+    session.lastActive = Date.now();
+    return next();
+  }
+
+  // If unauthorized static page request, redirect to login.html
+  if (req.method === 'GET' && !req.path.startsWith('/api/')) {
+    return res.redirect('/login.html');
+  }
+
+  return res.status(401).json({ error: 'Unauthorized: Windows Domain Login required.' });
+}
+
+// Helper to validate domain or local Windows credentials using PowerShell
+function validateWindowsCredentials(domain, username, password) {
+  return new Promise((resolve) => {
+    // Escape arguments for PowerShell safety
+    const safeDomain = domain.replace(/['";]/g, '');
+    const safeUser = username.replace(/['";]/g, '');
+    const safePass = password.replace(/'/g, "''"); // escape single quotes
+
+    let psScript = '';
+    if (safeDomain === '.' || safeDomain.toLowerCase() === 'localhost') {
+      // Local Machine validation context
+      psScript = `
+        Add-Type -AssemblyName System.DirectoryServices.AccountManagement
+        $pc = New-Object System.DirectoryServices.AccountManagement.PrincipalContext([System.DirectoryServices.AccountManagement.ContextType]::Machine)
+        $valid = $pc.ValidateCredentials('${safeUser}', '${safePass}')
+        Write-Output $valid
+      `;
+    } else {
+      // Active Directory Domain validation context
+      psScript = `
+        Add-Type -AssemblyName System.DirectoryServices.AccountManagement
+        try {
+          $pc = New-Object System.DirectoryServices.AccountManagement.PrincipalContext([System.DirectoryServices.AccountManagement.ContextType]::Domain, '${safeDomain}')
+          $valid = $pc.ValidateCredentials('${safeUser}', '${safePass}')
+          Write-Output $valid
+        } catch {
+          Write-Output "False"
+        }
+      `;
+    }
+
+    const child = spawn('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', psScript]);
+    let output = '';
+    child.stdout.on('data', (data) => { output += data.toString(); });
+    child.on('close', () => {
+      resolve(output.trim().toLowerCase() === 'true');
+    });
+  });
+}
+
+// Helper to fetch user groups on host/domain using net user / whoami
+function getWindowsUserGroups(domain, username) {
+  return new Promise((resolve) => {
+    const isLocal = domain === '.' || domain.toLowerCase() === 'localhost';
+    let cmd = '';
+    if (isLocal) {
+      cmd = `net user "${username}"`;
+    } else {
+      cmd = `net user "${username}" /domain`;
+    }
+    
+    exec(cmd, (err, stdout) => {
+      if (err) return resolve([]);
+      const groups = [];
+      const lines = stdout.split('\n');
+      let capture = false;
+      lines.forEach(line => {
+        if (line.includes('Local Group Memberships') || line.includes('Global Group memberships')) {
+          capture = true;
+          const content = line.replace(/Local Group Memberships|Global Group memberships/, '').trim();
+          if (content) groups.push(content);
+        } else if (capture) {
+          if (line.startsWith('---') || line.trim() === '') {
+            capture = false;
+          } else {
+            groups.push(line.trim());
+          }
+        }
       });
-
-      const isAllowedUser = netConfig.allowedDomainUsers.some(allowedUserOrGroup => {
-        const cleanAllowed = allowedUserOrGroup.toLowerCase();
-        return userOutput.toLowerCase().includes(cleanAllowed);
-      });
-
-      if (isAllowedGroup || isAllowedUser) {
-        next();
-      } else {
-        res.status(403).send(
-          '<h3>Forbidden: Access Denied</h3>' +
-          `<p>Your Windows Session credentials (<b>${userOutput || 'Unknown'}</b>) do not belong to the allowed administrator groups or users.</p>` +
-          '<p>Authorized users list: ' + JSON.stringify(netConfig.allowedDomainUsers) + '</p>'
-        );
-      }
+      resolve(groups);
     });
   });
 }
@@ -601,6 +671,60 @@ appDashboard.use(windowsAuthMiddleware);
 // Redirect root URL on Port 3001 directly to dashboard.html
 appDashboard.get('/', (req, res) => {
   res.redirect('/dashboard.html');
+});
+
+// API: Windows Domain / Local PC login credentials handler
+appDashboard.post('/api/auth/domain-login', async (req, res) => {
+  const { domain, username, password } = req.body;
+  if (!username || !password) {
+    return res.status(400).json({ error: 'Username and Password are required.' });
+  }
+
+  const targetDomain = domain && domain.trim() !== '' ? domain.trim() : '.';
+  console.log(`🔒 Domain Auth Request received: Domain="${targetDomain}", User="${username}"`);
+
+  // Step 1: Validate credentials using PowerShell
+  const isValid = await validateWindowsCredentials(targetDomain, username, password);
+  if (!isValid) {
+    return res.status(401).json({ error: 'Log in failed. Invalid username or password.' });
+  }
+
+  // Step 2: Fetch local/domain groups to verify allowed access list
+  const userGroups = await getWindowsUserGroups(targetDomain, username);
+  console.log(`👥 Groups identified for user ${username}:`, userGroups);
+
+  // Step 3: Check if username or group belongs to allowedDomainUsers list
+  const isAllowed = netConfig.allowedDomainUsers.some(allowed => {
+    const cleanAllowed = allowed.toLowerCase().replace(/\\\\/g, '\\');
+    // Direct username match
+    if (username.toLowerCase() === cleanAllowed || `${targetDomain.toLowerCase()}\\${username.toLowerCase()}` === cleanAllowed) {
+      return true;
+    }
+    // Group match
+    return userGroups.some(g => g.toLowerCase() === cleanAllowed);
+  });
+
+  if (!isAllowed && netConfig.allowedDomainUsers.length > 0) {
+    return res.status(403).json({ 
+      error: `Access Denied: Account '${username}' validated, but does not belong to authorized IT Admin groups.` 
+    });
+  }
+
+  // Step 4: Generate a session token
+  const token = 'ad_sess_' + crypto.randomBytes(32).toString('hex');
+  ACTIVE_SESSIONS.set(token, {
+    username,
+    domain: targetDomain,
+    loginTime: Date.now(),
+    lastActive: Date.now()
+  });
+
+  // Cleanup session database after 2 hours idle
+  setTimeout(() => {
+    ACTIVE_SESSIONS.delete(token);
+  }, 2 * 60 * 60 * 1000);
+
+  res.json({ success: true, message: 'Authentication successful.', token });
 });
 
 // API: Get departments list

@@ -1,9 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
-  // Authentication Elements
-  const passcodeOverlay = document.getElementById('passcodeOverlay');
-  const passcodeInput = document.getElementById('passcodeInput');
-  const verifyPasscodeBtn = document.getElementById('verifyPasscodeBtn');
-  const passcodeError = document.getElementById('passcodeError');
+  // Authentication Elements removed (handled by login.html)
 
   // State
   let reports = [];
@@ -75,53 +71,43 @@ document.addEventListener('DOMContentLoaded', () => {
   const statTotalDuration = document.getElementById('statTotalDuration');
   const statAvgDuration = document.getElementById('statAvgDuration');
 
-  // Global Auth PIN storage helper
-  function getAuthToken() {
-    return localStorage.getItem('auth_pin') || '';
+  // Global Auth storage helper
+  function getADSessionToken() {
+    return sessionStorage.getItem('ad_session_token') || '';
   }
 
-  // Sliding Inactivity Session Expiry (10 minutes)
-  let inactivityTimeout;
-  const INACTIVITY_TIME = 10 * 60 * 1000; // 10 minutes in ms
-
-  function resetInactivityTimer() {
-    clearTimeout(inactivityTimeout);
-    if (getAuthToken()) {
-      inactivityTimeout = setTimeout(handleSessionExpiry, INACTIVITY_TIME);
-    }
-  }
-
-  function handleSessionExpiry() {
-    localStorage.removeItem('auth_pin'); // Clear token
-    showPasscodePrompt();
-    passcodeError.innerHTML = '⚠️ Session expired due to inactivity.<br>Please verify PIN again.';
-    passcodeError.style.display = 'block';
-  }
-
-  // Register events to monitor user activity and reset timeout
-  const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
-  activityEvents.forEach(evt => {
-    document.addEventListener(evt, resetInactivityTimer, { passive: true });
-  });
-
-  // Authenticate PIN with the PC backend
-  async function testAuthentication(pin) {
-    try {
-      const response = await fetch('/api/reports', {
-        method: 'GET',
-        headers: {
-          'Bypass-Tunnel-Reminder': 'true',
-          'X-Auth-Token': pin
-        }
-      });
-      return response.ok;
-    } catch (err) {
-      return false;
-    }
+  // Retrieve the temporary Active Directory/Windows login session token
+  function getADSessionToken() {
+    return sessionStorage.getItem('ad_session_token') || '';
   }
 
   // Initialize Authentication Check
   async function initAuth() {
+    const token = getADSessionToken();
+    if (!token) {
+      // If token is missing, redirect to login page
+      window.location.href = '/login.html';
+      return;
+    }
+    
+    // Test if session is still valid on backend
+    try {
+      const response = await fetch('/api/reports', {
+        headers: {
+          'Authorization': token,
+          'Bypass-Tunnel-Reminder': 'true'
+        }
+      });
+      
+      if (!response.ok) {
+        sessionStorage.removeItem('ad_session_token');
+        window.location.href = '/login.html';
+        return;
+      }
+    } catch (e) {
+      // Offline fallback or failure
+    }
+
     loadTunnelInfo();
     fetchReports();
     fetchDepartments();
@@ -584,15 +570,14 @@ document.addEventListener('DOMContentLoaded', () => {
         headers: {
           'Content-Type': 'application/json',
           'Bypass-Tunnel-Reminder': 'true',
-          'X-Auth-Token': getAuthToken()
+          'Authorization': getADSessionToken()
         },
         body: JSON.stringify(updatedData)
       });
 
       if (response.status === 401) {
-        localStorage.removeItem('auth_pin');
-        showPasscodePrompt();
-        closeEditModal();
+        sessionStorage.removeItem('ad_session_token');
+        window.location.href = '/login.html';
         return;
       }
 
@@ -694,13 +679,13 @@ document.addEventListener('DOMContentLoaded', () => {
         method: 'DELETE',
         headers: {
           'Bypass-Tunnel-Reminder': 'true',
-          'X-Auth-Token': getAuthToken()
+          'Authorization': getADSessionToken()
         }
       });
 
       if (response.status === 401) {
-        localStorage.removeItem('auth_pin');
-        showPasscodePrompt();
+        sessionStorage.removeItem('ad_session_token');
+        window.location.href = '/login.html';
         return;
       }
 
@@ -718,14 +703,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Dynamic Departments Functions
   async function fetchDepartments() {
-    const token = getAuthToken();
+    const token = getADSessionToken();
     if (!token) return;
 
     try {
       const response = await fetch('/api/departments', {
         headers: {
           'Bypass-Tunnel-Reminder': 'true',
-          'X-Auth-Token': token
+          'Authorization': token
         }
       });
       if (response.ok) {
@@ -756,13 +741,13 @@ document.addEventListener('DOMContentLoaded', () => {
       const response = await fetch('/api/reports', {
         headers: {
           'Bypass-Tunnel-Reminder': 'true',
-          'X-Auth-Token': getAuthToken()
+          'Authorization': getADSessionToken()
         }
       });
 
       if (response.status === 401) {
-        localStorage.removeItem('auth_pin');
-        showPasscodePrompt();
+        sessionStorage.removeItem('ad_session_token');
+        window.location.href = '/login.html';
         return;
       }
 
@@ -808,7 +793,7 @@ document.addEventListener('DOMContentLoaded', () => {
         headers: {
           'Content-Type': 'application/json',
           'Bypass-Tunnel-Reminder': 'true',
-          'X-Auth-Token': getAuthToken()
+          'Authorization': getADSessionToken()
         },
         body: JSON.stringify({ filteredReports: filtered })
       });
@@ -836,22 +821,18 @@ document.addEventListener('DOMContentLoaded', () => {
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
         Export Excel (Styled)
       `;
-      resetInactivityTimer();
     }
   }
 
   // Filter events
   searchFilter.addEventListener('input', () => {
     renderTable();
-    resetInactivityTimer();
   });
   statusFilter.addEventListener('change', () => {
     renderTable();
-    resetInactivityTimer();
   });
   dateFilter.addEventListener('change', () => {
     renderTable();
-    resetInactivityTimer();
   });
 
   // Tab Navigation Listeners
@@ -897,14 +878,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Holiday API Management Functions
   async function fetchHolidays() {
-    const token = getAuthToken();
+    const token = getADSessionToken();
     if (!token) return;
 
     try {
       const response = await fetch('/api/holidays', {
         headers: {
           'Bypass-Tunnel-Reminder': 'true',
-          'X-Auth-Token': token
+          'Authorization': token
         }
       });
       if (response.ok) {
@@ -959,7 +940,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function deleteHoliday(id) {
-    const token = getAuthToken();
+    const token = getADSessionToken();
     if (!token) return;
 
     try {
@@ -967,7 +948,7 @@ document.addEventListener('DOMContentLoaded', () => {
         method: 'DELETE',
         headers: {
           'Bypass-Tunnel-Reminder': 'true',
-          'X-Auth-Token': token
+          'Authorization': token
         }
       });
       if (response.ok) {
@@ -1030,10 +1011,36 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+    try {
+      const response = await fetch('/api/holidays', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Bypass-Tunnel-Reminder': 'true',
+          'Authorization': getADSessionToken()
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const result = await response.json();
+      if (response.ok) {
+        holidayForm.reset();
+        holidayUserGroup.style.display = 'flex';
+        holidayUser.required = true;
+        
+        fetchHolidays();
+      } else {
+        alert('Failed: ' + (result.error || 'Server error'));
+      }
+    } catch (err) {
+      console.error('Add holiday error:', err);
+      alert('Failed to add holiday due to a network error.');
+    }
+  });
+
   // Action events
   refreshBtn.addEventListener('click', () => {
     fetchReports();
-    resetInactivityTimer();
   });
   exportCsvBtn.addEventListener('click', exportCSV);
 
