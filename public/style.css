@@ -545,6 +545,39 @@ input:focus, textarea:focus, select:focus {
   100% { transform: scale(1.1); }
 }
 
+/* AI Polish Button */
+.ai-polish-btn {
+  position: absolute;
+  right: 55px;
+  bottom: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border-color);
+  border-radius: 50%;
+  color: var(--text-secondary);
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 10;
+  font-size: 1.1rem;
+}
+
+.ai-polish-btn:hover {
+  background: rgba(99, 102, 241, 0.15);
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+.ai-polish-btn.loading {
+  animation: pulse-recording 1.2s infinite alternate;
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+
 /* Primary Action Buttons */
 .btn {
   font-family: inherit;

@@ -10,7 +10,6 @@ document.addEventListener('DOMContentLoaded', () => {
   let statusChartInstance = null;
 
   // Elements
-  const changePinBtn = document.getElementById('changePinBtn');
   const refreshBtn = document.getElementById('refreshBtn');
   const exportCsvBtn = document.getElementById('exportCsvBtn');
   const logoutBtn = document.getElementById('logoutBtn');
@@ -19,13 +18,19 @@ document.addEventListener('DOMContentLoaded', () => {
   const dateFilter = document.getElementById('dateFilter');
   const tableBody = document.getElementById('reportsTableBody');
   const tunnelStatusEl = document.getElementById('tunnelStatus');
-  const accessUsersBtn = document.getElementById('accessUsersBtn');
-  const accessUsersModal = document.getElementById('accessUsersModal');
-  const closeAccessUsersModalBtn = document.getElementById('closeAccessUsersModalBtn');
-  const accessUserForm = document.getElementById('accessUserForm');
-  const accessUserInput = document.getElementById('accessUserInput');
-  const accessUsersError = document.getElementById('accessUsersError');
-  const accessUsersTableBody = document.getElementById('accessUsersTableBody');
+  
+  const tabUsersBtn = document.getElementById('tabUsersBtn');
+  const tabUsersContent = document.getElementById('tabUsersContent');
+  const usersTableBody = document.getElementById('usersTableBody');
+  
+  const resetPasswordModal = document.getElementById('resetPasswordModal');
+  const resetPasswordForm = document.getElementById('resetPasswordForm');
+  const resetPasswordUserId = document.getElementById('resetPasswordUserId');
+  const resetPasswordUserName = document.getElementById('resetPasswordUserName');
+  const newPasswordInput = document.getElementById('newPasswordInput');
+  const resetPasswordError = document.getElementById('resetPasswordError');
+  const closeResetPasswordModalBtn = document.getElementById('closeResetPasswordModalBtn');
+  const cancelResetPasswordBtn = document.getElementById('cancelResetPasswordBtn');
 
   // Theme Elements
   const themeToggleBtn = document.getElementById('themeToggleBtn');
@@ -64,15 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const holidayDesc = document.getElementById('holidayDesc');
   const holidaysTableBody = document.getElementById('holidaysTableBody');
 
-  // Change PIN Modal Elements
-  const pinModal = document.getElementById('pinModal');
-  const pinForm = document.getElementById('pinForm');
-  const currentPinInput = document.getElementById('currentPinInput');
-  const newPinInput = document.getElementById('newPinInput');
-  const confirmPinInput = document.getElementById('confirmPinInput');
-  const pinError = document.getElementById('pinError');
-  const closePinModalBtn = document.getElementById('closePinModalBtn');
-  const cancelPinBtn = document.getElementById('cancelPinBtn');
+  // PIN modal elements removed
 
   // KPI elements
   const statTotalCalls = document.getElementById('statTotalCalls');
@@ -99,43 +96,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function initPointerEffects() {
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-
-    let frameId = null;
-    let nextX = window.innerWidth / 2;
-    let nextY = window.innerHeight * 0.18;
-
-    window.addEventListener('pointermove', (e) => {
-      nextX = e.clientX;
-      nextY = e.clientY;
-      if (frameId) return;
-      frameId = requestAnimationFrame(() => {
-        const parallaxX = (nextX - window.innerWidth / 2) * 0.018;
-        const parallaxY = (nextY - window.innerHeight / 2) * 0.018;
-        document.documentElement.style.setProperty('--cursor-x', `${nextX}px`);
-        document.documentElement.style.setProperty('--cursor-y', `${nextY}px`);
-        document.documentElement.style.setProperty('--parallax-x', `${parallaxX.toFixed(2)}px`);
-        document.documentElement.style.setProperty('--parallax-y', `${parallaxY.toFixed(2)}px`);
-        document.documentElement.style.setProperty('--parallax-x-neg', `${(-parallaxX).toFixed(2)}px`);
-        document.documentElement.style.setProperty('--parallax-y-neg', `${(-parallaxY).toFixed(2)}px`);
-        frameId = null;
-      });
-    }, { passive: true });
-
-    document.querySelectorAll('.stat-card, .chart-card').forEach(card => {
-      card.addEventListener('pointermove', (e) => {
-        const rect = card.getBoundingClientRect();
-        const x = (e.clientX - rect.left) / rect.width - 0.5;
-        const y = (e.clientY - rect.top) / rect.height - 0.5;
-        card.style.setProperty('--tilt-x', `${(-y * 3).toFixed(2)}deg`);
-        card.style.setProperty('--tilt-y', `${(x * 3).toFixed(2)}deg`);
-      }, { passive: true });
-
-      card.addEventListener('pointerleave', () => {
-        card.style.setProperty('--tilt-x', '0deg');
-        card.style.setProperty('--tilt-y', '0deg');
-      });
-    });
+    // Disabled heavy pointer effects to improve dashboard performance and prevent lag.
   }
 
   initPointerEffects();
@@ -179,86 +140,122 @@ document.addEventListener('DOMContentLoaded', () => {
     accessUsersError.style.display = message ? 'block' : 'none';
   }
 
-  async function fetchAllowedUsers() {
-    if (!accessUsersTableBody) return;
+  function showResetPasswordError(message) {
+    if (!resetPasswordError) return;
+    resetPasswordError.textContent = message || '';
+    resetPasswordError.style.display = message ? 'block' : 'none';
+  }
+
+  async function fetchUsers() {
+    if (!usersTableBody) return;
     try {
-      const response = await fetch('/api/access/users', {
+      const response = await fetch('/api/users', {
         headers: {
           'Authorization': getADSessionToken(),
           'Bypass-Tunnel-Reminder': 'true'
         }
       });
       if (!response.ok) throw new Error('Unable to load users');
-      const result = await response.json();
-      allowedUsers = Array.isArray(result.users) ? result.users : [];
-      renderAllowedUsers();
+      allowedUsers = await response.json();
+      renderUsers();
     } catch (err) {
-      accessUsersTableBody.innerHTML = '<tr><td colspan="2" class="no-data-msg">Unable to load users.</td></tr>';
+      usersTableBody.innerHTML = '<tr><td colspan="4" class="no-data-msg">Unable to load users.</td></tr>';
     }
   }
 
-  function renderAllowedUsers() {
-    if (!accessUsersTableBody) return;
+  function renderUsers() {
+    if (!usersTableBody) return;
     if (!allowedUsers.length) {
-      accessUsersTableBody.innerHTML = '<tr><td colspan="2" class="no-data-msg">No users selected.</td></tr>';
+      usersTableBody.innerHTML = '<tr><td colspan="4" class="no-data-msg">No users registered.</td></tr>';
       return;
     }
 
-    accessUsersTableBody.innerHTML = allowedUsers.map(user => {
-      const protectedUser = user.toLowerCase() === '.\\administrator';
+    usersTableBody.innerHTML = allowedUsers.map(user => {
+      const joinedDate = new Date(user.createdAt).toLocaleDateString();
       return `
         <tr>
-          <td style="font-weight: 600;">${escapeHTML(user)}${protectedUser ? ' <span style="color: var(--text-muted); font-weight: 500;">(local)</span>' : ''}</td>
+          <td style="font-weight: 600;">${escapeHTML(user.name)}</td>
+          <td>${escapeHTML(user.email)}</td>
+          <td>${joinedDate}</td>
           <td style="text-align: center;">
-            ${protectedUser
-              ? '<span style="color: var(--text-muted); font-size: 0.8rem;">Locked</span>'
-              : `<button class="btn-remove-access-user btn-action" data-user="${escapeHTML(user)}" style="background: none; border: none; cursor: pointer; color: var(--status-noanswer); font-weight: 700;">Remove</button>`}
+            <button class="btn-reset-password btn-action" data-id="${user.id}" data-name="${escapeHTML(user.name)}" style="background: none; border: 1px solid var(--primary); border-radius: 4px; padding: 4px 8px; cursor: pointer; color: var(--primary); font-weight: 600; font-size: 0.8rem; margin-right: 0.5rem;">Reset Pass</button>
+            <button class="btn-delete-user btn-action" data-id="${user.id}" data-name="${escapeHTML(user.name)}" style="background: none; border: none; cursor: pointer; color: var(--status-noanswer); font-weight: 700; font-size: 0.8rem;">Delete</button>
           </td>
         </tr>
       `;
     }).join('');
 
-    accessUsersTableBody.querySelectorAll('.btn-remove-access-user').forEach(btn => {
-      btn.addEventListener('click', () => removeAllowedUser(btn.dataset.user));
+    usersTableBody.querySelectorAll('.btn-delete-user').forEach(btn => {
+      btn.addEventListener('click', () => deleteUser(btn.dataset.id, btn.dataset.name));
+    });
+    
+    usersTableBody.querySelectorAll('.btn-reset-password').forEach(btn => {
+      btn.addEventListener('click', () => {
+        resetPasswordUserId.value = btn.dataset.id;
+        resetPasswordUserName.textContent = btn.dataset.name;
+        newPasswordInput.value = '';
+        showResetPasswordError('');
+        resetPasswordModal.classList.add('show');
+      });
     });
   }
 
-  async function addAllowedUser(user) {
-    showAccessUsersError('');
-    const response = await fetch('/api/access/users', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': getADSessionToken(),
-        'Bypass-Tunnel-Reminder': 'true'
-      },
-      body: JSON.stringify({ user })
-    });
-    const result = await response.json();
-    if (!response.ok) throw new Error(result.error || 'Failed to add user.');
-    allowedUsers = result.users || [];
-    renderAllowedUsers();
+  async function deleteUser(id, name) {
+    if (!confirm(`Are you sure you want to completely delete the user: ${name}?`)) return;
+    try {
+      const response = await fetch(`/api/users/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': getADSessionToken(),
+          'Bypass-Tunnel-Reminder': 'true'
+        }
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Failed to delete user.');
+      fetchUsers();
+    } catch (err) {
+      alert(err.message || 'Failed to delete user.');
+    }
   }
 
-  async function removeAllowedUser(user) {
-    if (!confirm(`Remove dashboard access for ${user}?`)) return;
-    showAccessUsersError('');
-    const response = await fetch('/api/access/users', {
-      method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': getADSessionToken(),
-        'Bypass-Tunnel-Reminder': 'true'
-      },
-      body: JSON.stringify({ user })
-    });
-    const result = await response.json();
-    if (!response.ok) {
-      showAccessUsersError(result.error || 'Failed to remove user.');
+  resetPasswordForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const id = resetPasswordUserId.value;
+    const newPassword = newPasswordInput.value;
+    if (!newPassword || newPassword.length < 6) {
+      showResetPasswordError('Password must be at least 6 characters.');
       return;
     }
-    allowedUsers = result.users || [];
-    renderAllowedUsers();
+
+    try {
+      const response = await fetch(`/api/users/${id}/password`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': getADSessionToken(),
+          'Bypass-Tunnel-Reminder': 'true'
+        },
+        body: JSON.stringify({ newPassword })
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Failed to reset password.');
+      resetPasswordModal.classList.remove('show');
+      alert('Password reset successfully.');
+    } catch (err) {
+      showResetPasswordError(err.message || 'Failed to reset password.');
+    }
+  });
+
+  if (closeResetPasswordModalBtn) {
+    closeResetPasswordModalBtn.addEventListener('click', () => {
+      resetPasswordModal.classList.remove('show');
+    });
+  }
+  
+  if (cancelResetPasswordBtn) {
+    cancelResetPasswordBtn.addEventListener('click', () => {
+      resetPasswordModal.classList.remove('show');
+    });
   }
 
   // 1. Light / Dark Theme Toggle
@@ -801,69 +798,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // 9. Change PIN Modal Logics
-  changePinBtn.addEventListener('click', () => {
-    pinModal.classList.add('show');
-    currentPinInput.focus();
-  });
-
-  function closePinModal() {
-    pinModal.classList.remove('show');
-    pinForm.reset();
-    pinError.style.display = 'none';
-  }
-
-  closePinModalBtn.addEventListener('click', closePinModal);
-  cancelPinBtn.addEventListener('click', closePinModal);
-
-  pinModal.addEventListener('click', (e) => {
-    if (e.target === pinModal) closePinModal();
-  });
-
-  pinForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-
-    const currentPin = currentPinInput.value;
-    const newPin = newPinInput.value;
-    const confirmPin = confirmPinInput.value;
-
-    pinError.style.display = 'none';
-
-    if (newPin !== confirmPin) {
-      pinError.textContent = '❌ New PIN and Confirm PIN do not match!';
-      pinError.style.display = 'block';
-      return;
-    }
-
-    try {
-      const response = await fetch('/api/security/update-pin', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Bypass-Tunnel-Reminder': 'true',
-          'Authorization': getADSessionToken()
-        },
-        body: JSON.stringify({ currentPin, newPin })
-      });
-
-      const result = await response.json();
-
-      if (response.ok) {
-        localStorage.setItem('auth_pin', newPin); // Save new pin in browser
-        closePinModal();
-        alert('✅ Security PIN updated successfully!');
-        resetInactivityTimer();
-      } else {
-        pinError.textContent = `❌ ${result.error || 'Failed to update PIN.'}`;
-        pinError.style.display = 'block';
-      }
-    } catch (err) {
-      console.error('Error updating PIN:', err);
-      pinError.textContent = '❌ Network error. Could not reach server.';
-      pinError.style.display = 'block';
-    }
-  });
-
   // Escape HTML Helper
   function escapeHTML(str) {
     if (!str) return '';
@@ -1050,37 +984,45 @@ document.addEventListener('DOMContentLoaded', () => {
   tabHolidaysBtn.addEventListener('click', () => {
     setActiveTab('holidays');
   });
+  
+  tabUsersBtn.addEventListener('click', () => {
+    setActiveTab('users');
+  });
 
   function setActiveTab(tab) {
+    [tabReportsBtn, tabHolidaysBtn, tabUsersBtn].forEach(btn => {
+      btn.classList.remove('active-tab');
+      btn.style.border = '1px solid transparent';
+      btn.style.background = 'transparent';
+      btn.style.color = 'var(--text-secondary)';
+    });
+    
+    [tabReportsContent, tabHolidaysContent, tabUsersContent].forEach(content => {
+      content.style.display = 'none';
+    });
+
+    let activeBtn = tabReportsBtn;
+    let activeContent = tabReportsContent;
+    
     if (tab === 'reports') {
-      tabReportsBtn.classList.add('active-tab');
-      tabReportsBtn.style.border = '1px solid var(--primary)';
-      tabReportsBtn.style.background = 'rgba(99, 102, 241, 0.1)';
-      tabReportsBtn.style.color = 'var(--primary)';
-
-      tabHolidaysBtn.classList.remove('active-tab');
-      tabHolidaysBtn.style.border = '1px solid transparent';
-      tabHolidaysBtn.style.background = 'transparent';
-      tabHolidaysBtn.style.color = 'var(--text-secondary)';
-
-      tabReportsContent.style.display = 'block';
-      tabHolidaysContent.style.display = 'none';
-    } else {
-      tabHolidaysBtn.classList.add('active-tab');
-      tabHolidaysBtn.style.border = '1px solid var(--primary)';
-      tabHolidaysBtn.style.background = 'rgba(99, 102, 241, 0.1)';
-      tabHolidaysBtn.style.color = 'var(--primary)';
-
-      tabReportsBtn.classList.remove('active-tab');
-      tabReportsBtn.style.border = '1px solid transparent';
-      tabReportsBtn.style.background = 'transparent';
-      tabReportsBtn.style.color = 'var(--text-secondary)';
-
-      tabReportsContent.style.display = 'none';
-      tabHolidaysContent.style.display = 'block';
-      
+      activeBtn = tabReportsBtn;
+      activeContent = tabReportsContent;
+    } else if (tab === 'holidays') {
+      activeBtn = tabHolidaysBtn;
+      activeContent = tabHolidaysContent;
       fetchHolidays();
+    } else if (tab === 'users') {
+      activeBtn = tabUsersBtn;
+      activeContent = tabUsersContent;
+      fetchUsers();
     }
+    
+    activeBtn.classList.add('active-tab');
+    activeBtn.style.border = '1px solid var(--primary)';
+    activeBtn.style.background = 'rgba(99, 102, 241, 0.1)';
+    activeBtn.style.color = 'var(--primary)';
+    
+    activeContent.style.display = 'block';
   }
 
   // Holiday API Management Functions
@@ -1197,7 +1139,7 @@ document.addEventListener('DOMContentLoaded', () => {
         headers: {
           'Content-Type': 'application/json',
           'Bypass-Tunnel-Reminder': 'true',
-          'X-Auth-Token': getAuthToken()
+          'Authorization': getAuthToken()
         },
         body: JSON.stringify(payload)
       });
@@ -1218,42 +1160,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Action events
-  if (accessUsersBtn) {
-    accessUsersBtn.addEventListener('click', () => {
-      showAccessUsersError('');
-      accessUsersModal.classList.add('show');
-      fetchAllowedUsers();
-      setTimeout(() => accessUserInput && accessUserInput.focus(), 50);
-    });
-  }
 
-  if (closeAccessUsersModalBtn) {
-    closeAccessUsersModalBtn.addEventListener('click', () => {
-      accessUsersModal.classList.remove('show');
-    });
-  }
-
-  if (accessUsersModal) {
-    accessUsersModal.addEventListener('click', (e) => {
-      if (e.target === accessUsersModal) accessUsersModal.classList.remove('show');
-    });
-  }
-
-  if (accessUserForm) {
-    accessUserForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const user = accessUserInput.value.trim();
-      if (!user) return;
-      try {
-        await addAllowedUser(user);
-        accessUserInput.value = '';
-        accessUserInput.focus();
-      } catch (err) {
-        showAccessUsersError(err.message || 'Failed to add user.');
-      }
-    });
-  }
 
   refreshBtn.addEventListener('click', () => {
     fetchReports();

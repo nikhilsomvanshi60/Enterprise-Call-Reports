@@ -1,4 +1,5 @@
 const express = require('express');
+require('dotenv').config();
 const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
@@ -7,6 +8,18 @@ const localtunnel = require('localtunnel');
 const qrcode = require('qrcode-terminal');
 const crypto = require('crypto');
 const ExcelJS = require('exceljs');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { initializeApp, cert } = require('firebase-admin/app');
+const { getDatabase } = require('firebase-admin/database');
+const bcrypt = require('bcryptjs');
+
+// Initialize Firebase Admin SDK
+const serviceAccount = require('./firebase-service-account.json');
+initializeApp({
+  credential: cert(serviceAccount),
+  databaseURL: `https://${serviceAccount.project_id}-default-rtdb.firebaseio.com`
+});
+const db = getDatabase();
 
 // Load configurations
 const DATA_DIR = path.join(__dirname, 'data');
@@ -67,7 +80,11 @@ const appDashboard = express();
 // appMobile serves everything except dashboard files to keep them secure
 appMobile.use((req, res, next) => {
   const filePath = req.path.toLowerCase();
-  if (filePath.includes('dashboard.html') || filePath.includes('dashboard.js')) {
+  if (filePath.includes('dashboard.html')) {
+    // Graceful redirect for cached mobile logins or incorrect URLs
+    const queryStr = Object.keys(req.query).length ? '?' + new URLSearchParams(req.query).toString() : '';
+    return res.redirect('/' + queryStr);
+  } else if (filePath.includes('dashboard.js')) {
     return res.status(403).send('Forbidden: Access is restricted to the administrator port.');
   }
   next();
@@ -108,105 +125,10 @@ appDashboard.use(rateLimiter(ipRequestsDashboard, 60));
 // -------------------------------------------------------------
 const ACTIVE_SESSIONS = new Map(); // Store temporary tokens
 
-function isLocalDomain(domain) {
-  const value = String(domain || '').trim().toLowerCase();
-  return !value || value === '.' || value === 'localhost' || value === osHostname().toLowerCase();
-}
-
-function osHostname() {
-  return process.env.COMPUTERNAME || require('os').hostname();
-}
-
-function normalizeName(value) {
-  return String(value || '')
-    .trim()
-    .replace(/^\*+/, '')
-    .replace(/\s+/g, ' ')
-    .toLowerCase();
-}
-
-function parseLoginIdentity(domain, username) {
-  let targetDomain = String(domain || '.').trim() || '.';
-  let targetUser = String(username || '').trim();
-
-  if (targetUser.includes('\\')) {
-    const parts = targetUser.split('\\');
-    targetDomain = parts.shift() || targetDomain;
-    targetUser = parts.join('\\');
-  } else if (targetUser.includes('@') && (!domain || domain === '.')) {
-    const parts = targetUser.split('@');
-    targetUser = parts.shift();
-    targetDomain = parts.join('@');
-  }
-
-  return { domain: targetDomain, username: targetUser };
-}
-
-function splitWindowsGroups(raw) {
-  return String(raw || '')
-    .split(/\s{2,}|\*/g)
-    .map(group => group.trim())
-    .filter(Boolean);
-}
-
-function normalizeAllowedEntries(entries) {
-  return (entries || []).map(entry => normalizeName(entry)).filter(Boolean);
-}
-
-function saveNetworkConfig() {
-  fs.writeFileSync(NETWORK_CONFIG_FILE, JSON.stringify(netConfig, null, 2), 'utf8');
-}
-
-function cleanAccessUser(value) {
-  return String(value || '')
-    .trim()
-    .replace(/\//g, '\\')
-    .replace(/\s+/g, '');
-}
-
-function isProtectedLocalAdmin(value) {
-  const clean = normalizeName(value);
-  return clean === '.\\administrator' || clean === `${normalizeName(osHostname())}\\administrator`;
-}
-
-function isUserAllowed(domain, username, userGroups) {
-  const allowedUsers = normalizeAllowedEntries(netConfig.allowedDomainUsers);
-  const allowedGroups = normalizeAllowedEntries(netConfig.allowedDomainGroups);
-  if (allowedUsers.length === 0 && allowedGroups.length === 0) return false;
-
-  const local = isLocalDomain(domain);
-  const cleanDomain = local ? '.' : normalizeName(domain);
-  const cleanHost = normalizeName(osHostname());
-  const cleanUser = normalizeName(username);
-  const loginNames = new Set([
-    cleanUser,
-    `${cleanDomain}\\${cleanUser}`,
-    `${cleanHost}\\${cleanUser}`
-  ]);
-  if (!local) loginNames.add(`${cleanUser}@${cleanDomain}`);
-
-  const groupNames = new Set();
-  userGroups.forEach(group => {
-    const cleanGroup = normalizeName(group);
-    if (!cleanGroup) return;
-    groupNames.add(cleanGroup);
-    groupNames.add(cleanGroup.replace(/^.*\\/, ''));
-  });
-
-  const userAllowed = allowedUsers.some(entry => loginNames.has(entry));
-  const groupAllowed = allowedGroups.some(entry => groupNames.has(entry) || groupNames.has(entry.replace(/^.*\\/, '')));
-  return userAllowed || groupAllowed;
-}
-
 // Middleware to protect Port 3001 Dashboard assets
-function windowsAuthMiddleware(req, res, next) {
-  if (!netConfig.enableADAuth) {
-    return next();
-  }
-
-  // Allow login.html and the login API without authentication
+function dashboardAuthMiddleware(req, res, next) {
   const pathLower = req.path.toLowerCase();
-  if (pathLower.includes('login.html') || pathLower === '/api/auth/domain-login' || pathLower.includes('style.css') || pathLower.includes('dashboard.js')) {
+  if (pathLower.includes('login.html') || pathLower.startsWith('/api/auth/') || pathLower.includes('style.css') || pathLower.includes('dashboard.js') || pathLower.includes('app.js')) {
     return next();
   }
 
@@ -214,157 +136,28 @@ function windowsAuthMiddleware(req, res, next) {
   const token = req.headers['authorization'] || req.query.token;
   if (token && ACTIVE_SESSIONS.has(token)) {
     const session = ACTIVE_SESSIONS.get(token);
-    // Refresh session timestamp
     session.lastActive = Date.now();
+    req.user = session;
     return next();
   }
 
-  // If unauthorized static page request, redirect to login.html
   if (req.method === 'GET' && !req.path.startsWith('/api/')) {
     return res.redirect('/login.html');
   }
 
-  return res.status(401).json({ error: 'Unauthorized: Windows Domain Login required.' });
+  return res.status(401).json({ error: 'Unauthorized: Login required.' });
 }
 
-// Helper to validate domain or local Windows credentials using PowerShell
-function validateWindowsCredentials(domain, username, password) {
-  return new Promise((resolve) => {
-    const psScript = `
-      Add-Type @"
-using System;
-using System.Runtime.InteropServices;
-public class WinLogon {
-  [DllImport("advapi32.dll", SetLastError=true, CharSet=CharSet.Unicode)]
-  public static extern bool LogonUser(string username, string domain, string password, int logonType, int logonProvider, out IntPtr token);
-  [DllImport("kernel32.dll", SetLastError=true)]
-  public static extern bool CloseHandle(IntPtr handle);
-}
-"@
-
-      function Test-WindowsCredential($domain, $user, $pass) {
-        $token = [IntPtr]::Zero
-        if ([string]::IsNullOrWhiteSpace($domain) -or $domain -eq "." -or $domain.ToLower() -eq "localhost") {
-          $domain = $env:COMPUTERNAME
-        }
-        $lastError = 0
-        foreach ($logonType in @(2, 3, 8, 9)) {
-          $token = [IntPtr]::Zero
-          $ok = [WinLogon]::LogonUser($user, $domain, $pass, $logonType, 0, [ref]$token)
-          if ($token -ne [IntPtr]::Zero) { [void][WinLogon]::CloseHandle($token) }
-          if ($ok) { return $true }
-          $lastError = [Runtime.InteropServices.Marshal]::GetLastWin32Error()
-        }
-        Write-Error "LogonUser failed for $domain\\$user. LastError=$lastError"
-        return $false
-      }
-
-      $domain = $env:AUTH_DOMAIN
-      $user = $env:AUTH_USER
-      $pass = $env:AUTH_PASS
-
-      if ([string]::IsNullOrWhiteSpace($domain) -or $domain -eq "." -or $domain.ToLower() -eq "localhost" -or $domain.ToLower() -eq $env:COMPUTERNAME.ToLower()) {
-        Write-Output (Test-WindowsCredential $domain $user $pass)
-      } else {
-        try {
-          Add-Type -AssemblyName System.DirectoryServices.AccountManagement
-          $pc = New-Object System.DirectoryServices.AccountManagement.PrincipalContext([System.DirectoryServices.AccountManagement.ContextType]::Domain, $domain)
-          $valid = $pc.ValidateCredentials($user, $pass)
-          if (-not $valid) { $valid = Test-WindowsCredential $domain $user $pass }
-          Write-Output $valid
-        } catch {
-          Write-Output (Test-WindowsCredential $domain $user $pass)
-        }
-      }
-    `;
-
-    const child = spawn('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', psScript], {
-      env: {
-        ...process.env,
-        AUTH_DOMAIN: String(domain || '.'),
-        AUTH_USER: String(username || ''),
-        AUTH_PASS: String(password || '')
-      }
-    });
-    let output = '';
-    let errorOutput = '';
-    child.stdout.on('data', (data) => { output += data.toString(); });
-    child.stderr.on('data', (data) => { errorOutput += data.toString(); });
-    child.on('close', () => {
-      if (errorOutput.trim()) {
-        console.error('Windows credential validation error:', errorOutput.trim());
-      }
-      const resultLines = output.split(/\r?\n/).map(line => line.trim().toLowerCase()).filter(Boolean);
-      resolve(resultLines.includes('true'));
-    });
-  });
-}
-
-// Helper to fetch user groups on host/domain using net user / whoami
-function getWindowsUserGroups(domain, username) {
-  return new Promise((resolve) => {
-    const isLocal = isLocalDomain(domain);
-    const args = isLocal ? ['user', username] : ['user', username, '/domain'];
-    const child = spawn('net', args);
-    let stdout = '';
-    child.stdout.on('data', data => { stdout += data.toString(); });
-    child.on('error', () => resolve([]));
-    child.on('close', (code) => {
-      if (code !== 0) return resolve([]);
-      const groups = [];
-      const lines = stdout.split('\n');
-      let capture = false;
-      lines.forEach(line => {
-        if (line.includes('Local Group Memberships') || line.includes('Global Group memberships')) {
-          capture = true;
-          const content = line.replace(/Local Group Memberships|Global Group memberships/, '').trim();
-          if (content) groups.push(...splitWindowsGroups(content));
-        } else if (capture) {
-          if (line.startsWith('---') || line.trim() === '') {
-            capture = false;
-          } else {
-            groups.push(...splitWindowsGroups(line));
-          }
-        }
-      });
-      resolve([...new Set(groups.map(group => group.trim()).filter(Boolean))]);
-    });
-  });
-}
-
-// -------------------------------------------------------------
-// SECURITY PIN HELPERS
-// -------------------------------------------------------------
-function hashPin(pin) {
-  return crypto.createHash('sha256').update(String(pin).trim()).digest('hex');
-}
-
-function getPinHash() {
-  if (!fs.existsSync(SECURITY_FILE)) {
-    fs.mkdirSync(path.dirname(SECURITY_FILE), { recursive: true });
-    fs.writeFileSync(SECURITY_FILE, JSON.stringify({ pin: hashPin('8989') }, null, 2), 'utf8');
-  }
-  try {
-    const data = JSON.parse(fs.readFileSync(SECURITY_FILE, 'utf8'));
-    let rawPin = data.pin || '8989';
-    if (/^[a-fA-F0-9]{64}$/.test(rawPin)) {
-      return rawPin;
-    }
-    const hashed = hashPin(rawPin);
-    fs.writeFileSync(SECURITY_FILE, JSON.stringify({ pin: hashed }, null, 2), 'utf8');
-    return hashed;
-  } catch (e) {
-    return hashPin('8989');
-  }
-}
-
-// API Authorization Middleware (X-Auth-Token checks)
+// API Authorization Middleware (Firebase Session Token) for Mobile
 function tokenAuth(req, res, next) {
-  const token = req.headers['x-auth-token'];
-  if (!token || hashPin(token) !== getPinHash()) {
-    return res.status(401).json({ error: 'Unauthorized: Invalid Security PIN.' });
+  const token = req.headers['authorization'] || req.headers['x-auth-token'] || req.query.token;
+  if (token && ACTIVE_SESSIONS.has(token)) {
+    const session = ACTIVE_SESSIONS.get(token);
+    session.lastActive = Date.now();
+    req.user = session;
+    return next();
   }
-  next();
+  return res.status(401).json({ error: 'Unauthorized: Login required.' });
 }
 
 function sanitizeString(str) {
@@ -762,138 +555,157 @@ appMobile.delete('/api/holidays/:id', tokenAuth, (req, res) => {
   }
 });
 
-// API: Update Security PIN from Mobile
-appMobile.post('/api/security/update-pin', tokenAuth, (req, res) => {
-  const { currentPin, newPin } = req.body;
-  if (hashPin(currentPin) !== getPinHash()) return res.status(400).json({ error: 'Incorrect Current PIN.' });
-  if (newPin.trim().length < 4) return res.status(400).json({ error: 'New PIN must be at least 4 characters long.' });
-  try {
-    fs.writeFileSync(SECURITY_FILE, JSON.stringify({ pin: hashPin(newPin) }, null, 2), 'utf8');
-    res.json({ success: true, message: 'Security PIN updated successfully.' });
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to update PIN.' });
-  }
-});
-
-// API: Fetch Tunnel Link info
-appMobile.get('/api/tunnel-info', (req, res) => {
-  if (fs.existsSync(TUNNEL_FILE)) {
-    return res.sendFile(TUNNEL_FILE);
-  }
-  res.status(404).json({ error: 'Tunnel offline' });
-});
-
-
 // -------------------------------------------------------------
-// ADMIN DASHBOARD ROUTING (Port 3001) - Secure Local Network AD auth
+// ADMIN DASHBOARD ROUTING (Port 3001) - Secure Auth
 // -------------------------------------------------------------
-appDashboard.use(windowsAuthMiddleware);
+appDashboard.use(dashboardAuthMiddleware);
 
 // Redirect root URL on Port 3001 directly to dashboard.html
 appDashboard.get('/', (req, res) => {
   res.redirect('/dashboard.html');
 });
 
-// API: Windows Domain / Local PC login credentials handler
-appDashboard.post('/api/auth/domain-login', async (req, res) => {
-  const { domain, username, password } = req.body;
-  if (!username || !password) {
-    return res.status(400).json({ error: 'Username and Password are required.' });
-  }
+[appMobile, appDashboard].forEach(app => {
+  // API: Firebase Register handler
+  app.post('/api/auth/register', async (req, res) => {
+    const { name, email, password } = req.body;
+    if (!name || !email || !password) {
+      return res.status(400).json({ error: 'Name, Email and Password are required.' });
+    }
 
-  const login = parseLoginIdentity(domain, username);
-  const targetDomain = login.domain;
-  const targetUser = login.username;
-  const localLogin = isLocalDomain(targetDomain);
-  console.log(`🔒 Domain Auth Request received: Domain="${targetDomain}", User="${targetUser}"`);
+    try {
+      const usersRef = db.ref('users');
+      const existingUser = await usersRef.orderByChild('email').equalTo(email.toLowerCase()).once('value');
+      if (existingUser.exists()) {
+        return res.status(400).json({ error: 'User already exists with this email.' });
+      }
 
-  if (localLogin && normalizeName(targetUser) !== 'administrator') {
-    return res.status(403).json({
-      error: 'Access Denied: Local PC login is allowed only for the Administrator account.'
-    });
-  }
+      const hashedPassword = await bcrypt.hash(password, 10);
+      await usersRef.push({
+        name,
+        email: email.toLowerCase(),
+        password: hashedPassword,
+        createdAt: Date.now()
+      });
 
-  // Step 1: Validate credentials using PowerShell
-  const isValid = await validateWindowsCredentials(targetDomain, targetUser, password);
-  if (!isValid) {
-    return res.status(401).json({ error: 'Log in failed. Invalid username or password.' });
-  }
-
-  // Step 2: Fetch local/domain groups to verify allowed access list
-  const userGroups = await getWindowsUserGroups(targetDomain, targetUser);
-  console.log(`👥 Groups identified for user ${targetUser}:`, userGroups);
-
-  // Step 3: Check if username or group belongs to allowedDomainUsers list
-  const isAllowed = isUserAllowed(targetDomain, targetUser, userGroups);
-
-  if (!isAllowed) {
-    return res.status(403).json({ 
-      error: `Access Denied: Account '${targetUser}' validated, but it is not in the authorized users/groups list.` 
-    });
-  }
-
-  // Step 4: Generate a session token
-  const token = 'ad_sess_' + crypto.randomBytes(32).toString('hex');
-  ACTIVE_SESSIONS.set(token, {
-    username: targetUser,
-    domain: targetDomain,
-    loginTime: Date.now(),
-    lastActive: Date.now()
+      res.json({ success: true, message: 'Registration successful.' });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: 'Failed to register user.' });
+    }
   });
 
-  // Cleanup session database after 2 hours idle
-  setTimeout(() => {
-    ACTIVE_SESSIONS.delete(token);
-  }, 2 * 60 * 60 * 1000);
+  // API: Firebase Login handler
+  app.post('/api/auth/login', async (req, res) => {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and Password are required.' });
+    }
 
-  res.json({ success: true, message: 'Authentication successful.', token });
-});
+    try {
+      const usersRef = db.ref('users');
+      const snapshot = await usersRef.orderByChild('email').equalTo(email.toLowerCase()).once('value');
+      if (!snapshot.exists()) {
+        return res.status(401).json({ error: 'Invalid email or password.' });
+      }
 
-// API: Get departments list
-appDashboard.get('/api/departments', (req, res) => {
-  res.json(readDepartments());
-});
+      const userObj = snapshot.val();
+      const userId = Object.keys(userObj)[0];
+      const user = userObj[userId];
 
-// API: Manage selected Windows/domain users who can access the dashboard
-appDashboard.get('/api/access/users', (req, res) => {
-  res.json({
-    users: netConfig.allowedDomainUsers || [],
-    groups: netConfig.allowedDomainGroups || []
+      const isValid = await bcrypt.compare(password, user.password);
+      if (!isValid) {
+        return res.status(401).json({ error: 'Invalid email or password.' });
+      }
+
+      // Generate a session token
+      const token = 'sess_' + crypto.randomBytes(32).toString('hex');
+      ACTIVE_SESSIONS.set(token, {
+        userId: userId,
+        email: user.email,
+        name: user.name,
+        loginTime: Date.now(),
+        lastActive: Date.now()
+      });
+
+      // Cleanup session database after 2 hours idle
+      setTimeout(() => {
+        ACTIVE_SESSIONS.delete(token);
+      }, 2 * 60 * 60 * 1000);
+
+      res.json({ success: true, message: 'Authentication successful.', token });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: 'Failed to login.' });
+    }
+  });
+
+  // API: Firebase Forgot Password handler
+  app.post('/api/auth/forgot-password', async (req, res) => {
+    const { email, newPassword } = req.body;
+    if (!email || !newPassword) {
+      return res.status(400).json({ error: 'Email and New Password are required.' });
+    }
+
+    try {
+      const usersRef = db.ref('users');
+      const snapshot = await usersRef.orderByChild('email').equalTo(email.toLowerCase()).once('value');
+      if (!snapshot.exists()) {
+        return res.status(404).json({ error: 'User not found.' });
+      }
+
+      const userObj = snapshot.val();
+      const userId = Object.keys(userObj)[0];
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      
+      await usersRef.child(userId).update({
+        password: hashedPassword
+      });
+
+      res.json({ success: true, message: 'Password updated successfully.' });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: 'Failed to update password.' });
+    }
   });
 });
 
-appDashboard.post('/api/access/users', (req, res) => {
-  const user = cleanAccessUser(req.body.user);
-  if (!user) {
-    return res.status(400).json({ error: 'User is required.' });
-  }
+// ============================================================
+// AI API: Text Translation & Grammar Correction
+// ============================================================
+[appMobile, appDashboard].forEach(app => {
+  app.post('/api/ai/improve-text', async (req, res) => {
+    const { text } = req.body;
+    if (!text) {
+      return res.status(400).json({ error: 'Text is required.' });
+    }
 
-  const existing = normalizeAllowedEntries(netConfig.allowedDomainUsers);
-  if (!existing.includes(normalizeName(user))) {
-    netConfig.allowedDomainUsers = [...(netConfig.allowedDomainUsers || []), user];
-    netConfig.allowedDomainGroups = netConfig.allowedDomainGroups || [];
-    saveNetworkConfig();
-  }
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      return res.status(500).json({ error: 'AI API Key is missing. Please set GEMINI_API_KEY.' });
+    }
 
-  res.status(201).json({ success: true, users: netConfig.allowedDomainUsers });
-});
+    try {
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-appDashboard.delete('/api/access/users', (req, res) => {
-  const user = cleanAccessUser(req.body.user);
-  if (!user) {
-    return res.status(400).json({ error: 'User is required.' });
-  }
-  if (isProtectedLocalAdmin(user)) {
-    return res.status(400).json({ error: 'Local Administrator access cannot be removed.' });
-  }
+      const prompt = `You are a professional IT support text enhancer.
+The user provided the following text (which might be in Hindi, Hinglish, or broken English).
+Please translate it to perfect, grammatically correct professional English.
+Output ONLY the final corrected text, without any quotes, conversational filler, or explanations.
 
-  const target = normalizeName(user);
-  const before = netConfig.allowedDomainUsers || [];
-  netConfig.allowedDomainUsers = before.filter(entry => normalizeName(entry) !== target);
-  netConfig.allowedDomainGroups = netConfig.allowedDomainGroups || [];
-  saveNetworkConfig();
+Text:
+"${text}"`;
 
-  res.json({ success: true, users: netConfig.allowedDomainUsers });
+      const result = await model.generateContent(prompt);
+      const responseText = result.response.text().trim();
+      
+      res.json({ success: true, correctedText: responseText });
+    } catch (error) {
+      console.error('AI Error:', error);
+      res.status(500).json({ error: 'Failed to improve text via AI.' });
+    }
+  });
 });
 
 // API: Get all reports (Dashboard full access)
@@ -1031,25 +843,53 @@ appDashboard.delete('/api/holidays/:id', (req, res) => {
   }
 });
 
-// API: Update Security PIN
-appDashboard.post('/api/security/update-pin', tokenAuth, (req, res) => {
-  const { currentPin, newPin } = req.body;
-  if (hashPin(currentPin) !== getPinHash()) return res.status(400).json({ error: 'Incorrect Current PIN.' });
-  if (newPin.trim().length < 4) return res.status(400).json({ error: 'New PIN must be at least 4 characters long.' });
+// API: Fetch all registered users
+appDashboard.get('/api/users', async (req, res) => {
   try {
-    fs.writeFileSync(SECURITY_FILE, JSON.stringify({ pin: hashPin(newPin) }, null, 2), 'utf8');
-    res.json({ success: true, message: 'Security PIN updated successfully.' });
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to update PIN.' });
+    const snapshot = await db.ref('users').once('value');
+    const users = [];
+    if (snapshot.exists()) {
+      snapshot.forEach(child => {
+        const data = child.val();
+        users.push({
+          id: child.key,
+          name: data.name,
+          email: data.email,
+          createdAt: data.createdAt
+        });
+      });
+    }
+    res.json(users);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch users.' });
   }
 });
 
-// API: Fetch Tunnel Link info
-appDashboard.get('/api/tunnel-info', (req, res) => {
-  if (fs.existsSync(TUNNEL_FILE)) {
-    return res.sendFile(TUNNEL_FILE);
+// API: Delete user
+appDashboard.delete('/api/users/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await db.ref('users').child(id).remove();
+    res.json({ success: true, message: 'User deleted successfully.' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to delete user.' });
   }
-  res.status(404).json({ error: 'Tunnel offline' });
+});
+
+// API: Reset user password
+appDashboard.put('/api/users/:id/password', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { newPassword } = req.body;
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters.' });
+    }
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await db.ref('users').child(id).update({ password: hashedPassword });
+    res.json({ success: true, message: 'Password reset successfully.' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to reset password.' });
+  }
 });
 
 // Serve public static assets for dashboard AFTER auth middleware filters them

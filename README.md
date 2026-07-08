@@ -1,121 +1,430 @@
-# NIK Call Logger & Issues Manager 📋
+# Enterprise Call Reports
 
-An enterprise-grade, PWA-compatible mobile call intake logger and real-time PC dashboard. Designed with Google Material Design 3 guidelines and premium glassmorphic aesthetics. 
+Enterprise Call Reports is a two-port call logging system for mobile issue entry and PC dashboard management. It stores reports locally, exports Excel files, supports department/holiday tracking, and protects the admin dashboard with Windows local/domain login.
 
-This repository contains the complete codebase configured for instant deployment and secure programmatic tunneling. Follow the setup instructions below to clone, configure, and run this application on any computer.
+## What This App Does
 
----
+- Mobile users open the logger on port `3000` and submit call/issue reports.
+- Admin users open the dashboard on port `3001` and manage reports, exports, holidays, access users, and analytics.
+- Reports are saved to local data files in `data/`.
+- The mobile app can be exposed through Ngrok or localtunnel for phone access.
+- The dashboard is restricted to selected Windows/domain users.
 
-## 🚀 Key Features
+## Main URLs
 
-### 1. 📱 Mobile Logger Client (Offline-Ready PWA)
-* **Custom Excel Fields Mapping**: Matches standard reports columns (`Date | User | Department | Problems | Action | Status | ResolveDate | Remarks`).
-* **PWA Offline Mode & Background Auto-Sync**: Logs submissions locally when offline and automatically pushes them to the PC database when the connection is restored.
-* **🎤 Multi-Lingual Speech Dictation**: Dynamic voice-to-text supporting **English (US)**, **English (India/Hinglish)**, and **Hindi (हिंदी)** with live soundwave animations.
-* **Dual Theme Toggle**: Instantly switch between premium Dark and Light modes.
+When running on the server PC:
 
-### 2. 📊 PC Dashboard Manager (Real-time Analytics)
-* **KPI Metrics Tracker**: Live statistics tracking total calls, resolved rate %, and pending issues.
-* **Dynamic Visualizations**: Live Doughnut & Bar charts (using Chart.js) displaying department workloads and status distribution.
-* **Live Inline Database Editor**: Edit status, actions, remarks, or dates directly within the dashboard table.
-* **Excel Export**: Single-click downloads of filtered log data in Excel-optimized CSV formatting (UTF-8 with BOM).
-
-### 3. 🛡️ Advanced Security Suite
-* **Cryptographic SHA-256 Hashing**: PIN passcodes are stored securely as 256-bit hashes inside `data/security_config.json` instead of plaintext.
-* **Sliding Session Expiry**: Automatically logs out users after **10 minutes of inactivity** to prevent unauthorized access.
-* **Anti-Spam Rate Limiter**: Restricts devices to a maximum of 60 requests per minute to block DDoS attacks.
-* **Input Sanitization**: Server-side filters that strip HTML/Script tags to prevent Cross-Site Scripting (XSS) injections.
-
-### 4. 💾 Automated Data Backups
-* **Daily Cron Backups**: Creates daily timestamped copies of your JSON and CSV databases in the `data/backups/` directory whenever edits are logged.
-
----
-
-## 📂 Project Structure
-
+```text
+Mobile logger:  http://<PC-IP>:3000
+Admin login:    http://<PC-IP>:3001/login.html
 ```
+
+Example:
+
+```text
+http://192.168.0.72:3000
+http://192.168.0.72:3001/login.html
+```
+
+The startup BAT automatically detects the PC IP and opens the admin login page.
+
+## Features
+
+- Mobile report form with departments, issue details, actions, status, remarks, and dates.
+- PC dashboard with search, filters, editable reports, delete, and styled Excel export.
+- Animated modern dashboard UI with dark/light theme support.
+- Ranked "Issues by Department" chart and issue status chart.
+- Recent activity feed.
+- Public holiday and personal leave management.
+- Security PIN for mobile/admin report APIs.
+- Windows local/domain login for dashboard access.
+- Selected-user access list from the dashboard.
+- Automatic report storage in JSON, CSV, and Excel formats.
+- Daily backup support in `data/backups/`.
+- Optional Ngrok static domain tunnel.
+
+## Project Structure
+
+```text
 call-logger/
-├── data/
-│   ├── reports.json         <-- Main JSON Database (Excluded from Git)
-│   ├── reports.csv          <-- Spreadsheet Database (Excluded from Git)
-│   ├── security_config.json <-- Cryptographically secure SHA-256 PIN hash (Excluded from Git)
-│   └── backups/             <-- Automated daily database backups (Excluded from Git)
-├── public/
-│   ├── index.html           <-- Mobile client page
-│   ├── app.js               <-- Mobile client logic & dictation
-│   ├── dashboard.html       <-- PC Dashboard page
-│   ├── dashboard.js         <-- PC Dashboard filtering & CSV export
-│   ├── style.css            <-- Premium shared glassmorphism styling
-│   └── tunnel_info.txt      <-- Auto-generated server access details
-├── server.js                <-- Node.js server and tunnel manager
-├── Start_Logger_Server.bat  <-- One-click Windows startup script
-└── package.json             <-- Project dependencies
+  data/
+    backups/                  Daily backup files
+    departments.json          Department dropdown list
+    holidays.json             Holiday/leave data
+    network_config.json       Ports and dashboard access users
+    reports.csv               CSV report database
+    reports.xlsx              Excel report database
+    security_config.json      Hashed mobile/admin PIN
+  public/
+    app.js                    Mobile logger logic
+    dashboard.html            Admin dashboard page
+    dashboard.js              Dashboard logic and charts
+    index.html                Mobile logger page
+    login.html                Windows/domain login page
+    style.css                 Shared UI styling
+    tunnel_info.txt           Generated tunnel information
+  screenshots/
+    dashboard_view.png
+    mobile_view.png
+  server.js                   Node/Express backend
+  Start_Logger_Server.bat     Recommended Windows launcher
+  start_server.bat            Wrapper launcher
+  setup_ngrok.bat             Ngrok setup helper
+  package.json
 ```
 
----
+## Requirements
 
-## ⚙️ How to Clone & Run This Project From GitHub
+- Windows PC recommended.
+- Node.js installed and available in PATH.
+- Network access allowed through Windows Firewall for ports `3000` and `3001`.
+- For domain login, the PC should be able to reach the domain controller.
+- Optional: Ngrok account and static domain if global mobile access is needed.
 
-Follow these steps to deploy and run the system on any PC from scratch:
+## Install From GitHub
 
-### Step 1: Clone the Repository
-Open Git Bash, Command Prompt, or PowerShell and clone the repository:
+Clone the repository:
+
 ```bash
 git clone https://github.com/nikhilsomvanshi60/Enterprise-Call-Reports.git
-```
-
-### Step 2: Navigate to Project Folder
-```bash
 cd Enterprise-Call-Reports
 ```
 
-### Step 3: Install Node Dependencies
-Download and install the required library packages (Express, Cors, Localtunnel, QRCode, etc.):
+Install dependencies:
+
 ```bash
 npm install
 ```
 
-### Step 4: Configure Ngrok Credentials
-To enable global internet access for mobile phones via your permanent Ngrok static domain:
-1. Double-click the **`setup_ngrok.bat`** file inside the project directory.
-2. Enter your **Ngrok Authtoken** when prompted:
-   `2Upv7znBf0hv7KIm5xWWBNhddHt_2ip2HPSbcC1UXRY9AzbWM`
-3. Enter your **Ngrok Static Domain** when prompted:
-   `undeprecated-undeprecatingly-kathlyn.ngrok-free.dev`
-4. This script automatically saves your credentials into `data/ngrok_config.json`.
+## Run The App
 
----
+### Recommended: Windows BAT
 
-## 🚀 Starting the Application
+Double-click:
 
-You can start the logger system using one of the following methods:
+```text
+Start_Logger_Server.bat
+```
 
-### Method A: One-Click Startup (Recommended for Windows)
-Simply double-click the **`Start_Logger_Server.bat`** file inside the project directory. This script will:
-* Launch the Express backend server.
-* Bind the secure Ngrok tunnel.
-* Auto-launch the PC Dashboard page (`http://localhost:3000/dashboard.html`) in your default web browser.
+The BAT file will:
 
-### Method B: Manual Startup via Terminal
-Run the start command in your command line:
+- Switch to the project folder automatically.
+- Detect the PC LAN IP.
+- Install dependencies if `node_modules` is missing.
+- Start the Node server with `npm.cmd start`.
+- Open the admin login page with the detected IP.
+
+### Manual Terminal Run
+
 ```bash
 npm start
 ```
-* Once started, a **QR Code** will be generated directly in the console. Scan this QR code with your mobile camera to open the application instantly on your phone!
 
----
+If PowerShell blocks `npm.ps1`, use:
 
-## 🔒 Passcode Settings & Expiry
-* **Default Login PIN**: `8989` (Required to access the dashboard and logger form).
-* **Changing the PIN**: Go to the PC Dashboard, click the **🔑 Change PIN** button in the header, enter the current PIN, and set a new one. The server will automatically hash and update the configuration.
-* **Auto-Logout**: Sessions automatically expire and lock after **10 minutes** of user inactivity.
+```powershell
+npm.cmd start
+```
 
----
+## How Login Works
 
-## 📸 Screen Previews
+The app uses two different security layers.
 
-### 1. 📊 PC Dashboard Manager (Analytics & Activity Feed)
-![PC Dashboard Interface](screenshots/dashboard_view.png)
+### Mobile/API PIN
 
-### 2. 📱 Mobile Logger Client (Speech Localization & PWA Form)
-![Mobile Logger Interface](screenshots/mobile_view.png)
+Mobile report APIs use a security PIN stored as a SHA-256 hash in:
+
+```text
+data/security_config.json
+```
+
+Default PIN is created as `8989` if no security config exists. You can change the PIN from the dashboard using "Change PIN".
+
+### Dashboard Windows Login
+
+The PC dashboard runs on port `3001` and uses Windows credential validation.
+
+Local PC login:
+
+```text
+Domain / PC Name: .
+Username: Administrator
+Password: local Windows Administrator password
+```
+
+Domain login:
+
+```text
+Domain / PC Name: YOUR_DOMAIN
+Username: selected domain username
+Password: domain password
+```
+
+The dashboard only opens for users listed in `data/network_config.json`.
+
+## Selected Dashboard Users
+
+Current config example:
+
+```json
+{
+  "bindIp": "0.0.0.0",
+  "mobilePort": 3000,
+  "dashboardPort": 3001,
+  "allowedDomainUsers": [
+    ".\\Administrator",
+    "infodba"
+  ],
+  "allowedDomainGroups": [],
+  "enableADAuth": true
+}
+```
+
+Rules:
+
+- `".\\Administrator"` allows the local PC Administrator account.
+- `"infodba"` allows only that selected domain/local user name.
+- `"DOMAIN\\username"` can be used for an exact domain user.
+- `allowedDomainGroups` is empty by default, so domain groups do not automatically get access.
+- If a user is not in `allowedDomainUsers`, login is denied even if the password is correct.
+
+### Add Or Remove Users From Dashboard
+
+1. Login as local `.\Administrator` or another already allowed admin.
+2. Click `Access Users`.
+3. Add a user like:
+
+```text
+DOMAIN\username
+```
+
+or:
+
+```text
+username
+```
+
+4. Remove users that should no longer have dashboard access.
+
+The local Administrator entry is protected so the PC can still recover access.
+
+## Departments
+
+Department dropdown values are stored in:
+
+```text
+data/departments.json
+```
+
+Example:
+
+```json
+[
+  "Design",
+  "Elec.Design",
+  "Accounts",
+  "QC",
+  "Store",
+  "Mktg",
+  "Service",
+  "Logistics",
+  "Maint Dept",
+  "Spear P5",
+  "P3 CNC",
+  "HR & Admin"
+]
+```
+
+After editing departments, refresh the browser. Restart the server if the old list still appears.
+
+## Data Files
+
+Reports are stored in:
+
+```text
+data/reports.csv
+data/reports.xlsx
+```
+
+Other data files:
+
+```text
+data/holidays.json
+data/departments.json
+data/network_config.json
+data/security_config.json
+```
+
+Backups are stored in:
+
+```text
+data/backups/
+```
+
+## Excel Export
+
+The dashboard can export filtered report data to a styled Excel workbook. The export includes report rows and can include holiday/leave styling when configured in the dashboard.
+
+## Tunnel / Mobile Internet Access
+
+On startup, the server tries to expose the mobile app on port `3000`.
+
+Order:
+
+1. Ngrok static domain if `data/ngrok_config.json` exists.
+2. localtunnel fallback.
+3. localhost.run fallback.
+
+To configure Ngrok:
+
+```text
+setup_ngrok.bat
+```
+
+You will need your own Ngrok authtoken and static domain. Do not commit secrets or tokens to GitHub.
+
+Generated tunnel info is written to:
+
+```text
+public/tunnel_info.txt
+```
+
+## API Overview
+
+Mobile app APIs on port `3000` use PIN token auth:
+
+```text
+GET    /api/departments
+POST   /api/departments
+GET    /api/reports
+POST   /api/reports
+PUT    /api/reports/:id
+GET    /api/holidays
+POST   /api/holidays
+DELETE /api/holidays/:id
+POST   /api/security/update-pin
+GET    /api/tunnel-info
+```
+
+Dashboard APIs on port `3001` use Windows login session auth:
+
+```text
+POST   /api/auth/domain-login
+GET    /api/access/users
+POST   /api/access/users
+DELETE /api/access/users
+GET    /api/reports
+PUT    /api/reports/:id
+DELETE /api/reports/:id
+POST   /api/reports/export
+GET    /api/holidays
+POST   /api/holidays
+DELETE /api/holidays/:id
+GET    /api/tunnel-info
+```
+
+## Troubleshooting
+
+### `npm.ps1 cannot be loaded`
+
+Use:
+
+```powershell
+npm.cmd start
+```
+
+The BAT launcher already uses `npm.cmd`.
+
+### Port already in use
+
+If port `3000` or `3001` is busy, stop the old Node process or close the old server window.
+
+PowerShell check:
+
+```powershell
+Get-NetTCPConnection -LocalPort 3000,3001
+```
+
+### Dashboard keeps returning to login
+
+Clear browser session storage or login again:
+
+```text
+http://<PC-IP>:3001/login.html
+```
+
+The login page passes a temporary session token to `dashboard.html`.
+
+### Local Administrator cannot login
+
+Check:
+
+- The Windows `Administrator` account is enabled.
+- Password is not blank.
+- Use domain field `.`.
+- Use username `Administrator`.
+- The account is present in `allowedDomainUsers` as `".\\Administrator"`.
+
+### Domain user password works but access denied
+
+The credential is valid, but the user is not in the selected access list. Add the user from `Access Users` or edit:
+
+```text
+data/network_config.json
+```
+
+### Mobile cannot open by IP
+
+Check:
+
+- Phone and PC are on the same network.
+- Windows Firewall allows Node.js.
+- Server is bound to `0.0.0.0`.
+- Use `http://<PC-IP>:3000`, not localhost from the phone.
+
+## Useful Commands
+
+Run server:
+
+```bash
+npm start
+```
+
+Syntax check:
+
+```bash
+node --check server.js
+node --check public/dashboard.js
+```
+
+Check Git status:
+
+```bash
+git status -sb
+```
+
+Push to GitHub:
+
+```bash
+git add .
+git commit -m "Update app"
+git push origin main
+```
+
+## Notes For Maintainers
+
+- Do not commit real passwords, Ngrok authtokens, or private domain credentials.
+- `data/reports.xlsx` and screenshots can change when the app runs or screenshots are regenerated.
+- Dashboard auth is controlled by `data/network_config.json`.
+- Mobile PIN auth is controlled by `data/security_config.json`.
+- If changing ports, update `data/network_config.json` and restart the server.
+
+## Screenshots
+
+Dashboard:
+
+![Dashboard](screenshots/dashboard_view.png)
+
+Mobile:
+
+![Mobile](screenshots/mobile_view.png)

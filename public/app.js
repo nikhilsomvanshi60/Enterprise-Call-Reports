@@ -3,11 +3,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // DOM ELEMENTS
   // ============================================================
 
-  // Auth
-  const passcodeOverlay   = document.getElementById('passcodeOverlay');
-  const passcodeInput     = document.getElementById('passcodeInput');
-  const verifyPasscodeBtn = document.getElementById('verifyPasscodeBtn');
-  const passcodeError     = document.getElementById('passcodeError');
+  // Auth handled by login.html
 
   // Main Form
   const callForm          = document.getElementById('callForm');
@@ -31,6 +27,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const problemsWave       = document.getElementById('problemsWave');
   const actionWave         = document.getElementById('actionWave');
   const remarksWave        = document.getElementById('remarksWave');
+  
+  // AI Polish Buttons
+  const aiPolishProblemsBtn = document.getElementById('aiPolishProblemsBtn');
+  const aiPolishActionBtn   = document.getElementById('aiPolishActionBtn');
+  const aiPolishRemarksBtn  = document.getElementById('aiPolishRemarksBtn');
 
   // Theme & Banner
   const themeToggleBtn  = document.getElementById('themeToggleBtn');
@@ -54,22 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const newDepartmentInput   = document.getElementById('newDepartmentInput');
   const saveNewDepartmentBtn = document.getElementById('saveNewDepartmentBtn');
 
-  // Forgot Passcode
-  const forgotPasscodeBtn      = document.getElementById('forgotPasscodeBtn');
-  const forgotPinModal         = document.getElementById('forgotPinModal');
-  const closeForgotPinModalBtn = document.getElementById('closeForgotPinModalBtn');
-  const confirmForgotPinBtn    = document.getElementById('confirmForgotPinBtn');
-
-  // Change PIN Modal
-  const mobileChangePinBtn          = document.getElementById('mobileChangePinBtn');
-  const mobileChangePinModal        = document.getElementById('mobileChangePinModal');
-  const closeMobileChangePinModalBtn= document.getElementById('closeMobileChangePinModalBtn');
-  const cancelMobileChangePinBtn    = document.getElementById('cancelMobileChangePinBtn');
-  const mobilePinForm               = document.getElementById('mobilePinForm');
-  const mobileCurrentPin            = document.getElementById('mobileCurrentPin');
-  const mobileNewPin                = document.getElementById('mobileNewPin');
-  const mobileConfirmPin            = document.getElementById('mobileConfirmPin');
-  const mobilePinError              = document.getElementById('mobilePinError');
+  const mobileLogoutBtn = document.getElementById('mobileLogoutBtn');
 
   // Holidays Section
   const mobileAddHolidayBtn    = document.getElementById('mobileAddHolidayBtn');
@@ -95,8 +81,22 @@ document.addEventListener('DOMContentLoaded', () => {
   // ============================================================
   // AUTH TOKEN
   // ============================================================
+  function captureTokenFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+    if (!token) return;
+
+    localStorage.setItem('auth_token', token);
+    params.delete('token');
+    const cleanQuery = params.toString();
+    const cleanUrl = `${window.location.pathname}${cleanQuery ? `?${cleanQuery}` : ''}${window.location.hash}`;
+    window.history.replaceState({}, document.title, cleanUrl);
+  }
+
+  captureTokenFromUrl();
+
   function getAuthToken() {
-    return localStorage.getItem('auth_pin') || '';
+    return localStorage.getItem('auth_token') || '';
   }
 
   // ============================================================
@@ -113,12 +113,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function handleSessionExpiry() {
-    localStorage.removeItem('auth_pin');
-    showPasscodePrompt();
-    if (passcodeError) {
-      passcodeError.innerHTML = '⚠️ Session expired due to inactivity.<br>Please verify PIN again.';
-      passcodeError.style.display = 'block';
-    }
+    localStorage.removeItem('auth_token');
+    window.location.href = '/login.html';
   }
 
   ['mousedown','mousemove','keypress','scroll','touchstart'].forEach(evt => {
@@ -128,11 +124,11 @@ document.addEventListener('DOMContentLoaded', () => {
   // ============================================================
   // AUTHENTICATION
   // ============================================================
-  async function testAuthentication(pin) {
+  async function testAuthentication(token) {
     try {
       const res = await fetch('/api/reports', {
         method: 'GET',
-        headers: { 'Bypass-Tunnel-Reminder': 'true', 'X-Auth-Token': pin }
+        headers: { 'Bypass-Tunnel-Reminder': 'true', 'Authorization': token }
       });
       return res.ok;
     } catch {
@@ -141,25 +137,21 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function initAuth() {
-    const savedPin = getAuthToken();
-    if (savedPin) {
-      const valid = await testAuthentication(savedPin);
+    const token = getAuthToken();
+    if (token) {
+      const valid = await testAuthentication(token);
       if (valid) {
         unlockApp();
       } else {
-        localStorage.removeItem('auth_pin');
-        showPasscodePrompt();
+        localStorage.removeItem('auth_token');
+        window.location.href = '/login.html';
       }
     } else {
-      showPasscodePrompt();
+      window.location.href = '/login.html';
     }
   }
 
   function unlockApp() {
-    if (passcodeOverlay) {
-      passcodeOverlay.style.opacity       = '0';
-      passcodeOverlay.style.pointerEvents = 'none';
-    }
     updateOnlineStatus();
     resetInactivityTimer();
     fetchDepartments();
@@ -167,41 +159,12 @@ document.addEventListener('DOMContentLoaded', () => {
     fetchMobileHolidays();
   }
 
-  function showPasscodePrompt() {
-    if (passcodeOverlay) {
-      passcodeOverlay.style.opacity       = '1';
-      passcodeOverlay.style.pointerEvents = 'auto';
-    }
-    if (passcodeInput) { passcodeInput.value = ''; passcodeInput.focus(); }
-    clearTimeout(inactivityTimeout);
+  if (mobileLogoutBtn) {
+    mobileLogoutBtn.addEventListener('click', () => {
+      localStorage.removeItem('auth_token');
+      window.location.href = '/login.html';
+    });
   }
-
-  async function handleVerifyPIN() {
-    if (!passcodeInput) return;
-    const pin = passcodeInput.value.trim();
-    if (!pin) return;
-
-    if (verifyPasscodeBtn) { verifyPasscodeBtn.disabled = true; verifyPasscodeBtn.textContent = 'Verifying...'; }
-    if (passcodeError) passcodeError.style.display = 'none';
-
-    const valid = await testAuthentication(pin);
-    if (valid) {
-      localStorage.setItem('auth_pin', pin);
-      if (passcodeOverlay) {
-        passcodeOverlay.style.transition  = 'opacity 0.3s ease';
-        passcodeOverlay.style.opacity     = '0';
-        passcodeOverlay.style.pointerEvents = 'none';
-      }
-      unlockApp();
-    } else {
-      if (passcodeError) { passcodeError.textContent = '❌ Invalid Security PIN! Try again.'; passcodeError.style.display = 'block'; }
-      if (passcodeInput) { passcodeInput.value = ''; passcodeInput.focus(); }
-    }
-    if (verifyPasscodeBtn) { verifyPasscodeBtn.disabled = false; verifyPasscodeBtn.textContent = 'Verify PIN'; }
-  }
-
-  if (verifyPasscodeBtn) verifyPasscodeBtn.addEventListener('click', handleVerifyPIN);
-  if (passcodeInput)     passcodeInput.addEventListener('keypress', e => { if (e.key === 'Enter') handleVerifyPIN(); });
 
   // ============================================================
   // DATE & TIME DEFAULT
@@ -256,20 +219,71 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ============================================================
+  // AI TEXT IMPROVEMENT
+  // ============================================================
+  async function improveTextViaAI(text, buttonEl) {
+    if (!text || !text.trim()) return text;
+    const token = getAuthToken();
+    if (!token) return text;
+
+    if (buttonEl) buttonEl.classList.add('loading');
+    
+    try {
+      const res = await fetch('/api/ai/improve-text', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': token,
+          'Bypass-Tunnel-Reminder': 'true'
+        },
+        body: JSON.stringify({ text })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        return data.correctedText;
+      } else if (data.error && data.error.includes('GEMINI_API_KEY')) {
+        alert('Server is missing Gemini API Key. Please provide it to the admin.');
+      }
+    } catch (e) {
+      console.error('AI Polish error:', e);
+    } finally {
+      if (buttonEl) buttonEl.classList.remove('loading');
+    }
+    return text;
+  }
+
+  function setupAIPolishBtn(btn, textarea) {
+    if (!btn || !textarea) return;
+    btn.addEventListener('click', async () => {
+      const currentText = textarea.value;
+      if (!currentText.trim()) return;
+      const improved = await improveTextViaAI(currentText, btn);
+      if (improved && improved !== currentText) {
+        textarea.value = improved;
+        textarea.dispatchEvent(new Event('input'));
+      }
+    });
+  }
+
+  setupAIPolishBtn(aiPolishProblemsBtn, problemsTextarea);
+  setupAIPolishBtn(aiPolishActionBtn, actionTextarea);
+  setupAIPolishBtn(aiPolishRemarksBtn, remarksTextarea);
+
+  // ============================================================
   // VOICE DICTATION
   // ============================================================
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (SpeechRecognition) {
-    if (dictateProblemsBtn && problemsTextarea && problemsWave) setupDictation(dictateProblemsBtn, problemsTextarea, problemsWave);
-    if (dictateActionBtn  && actionTextarea   && actionWave)    setupDictation(dictateActionBtn,   actionTextarea,   actionWave);
-    if (dictateRemarksBtn && remarksTextarea  && remarksWave)   setupDictation(dictateRemarksBtn,  remarksTextarea,  remarksWave);
+    if (dictateProblemsBtn && problemsTextarea && problemsWave) setupDictation(dictateProblemsBtn, problemsTextarea, problemsWave, aiPolishProblemsBtn);
+    if (dictateActionBtn  && actionTextarea   && actionWave)    setupDictation(dictateActionBtn,   actionTextarea,   actionWave, aiPolishActionBtn);
+    if (dictateRemarksBtn && remarksTextarea  && remarksWave)   setupDictation(dictateRemarksBtn,  remarksTextarea,  remarksWave, aiPolishRemarksBtn);
   } else {
     [dictateProblemsBtn, dictateActionBtn, dictateRemarksBtn].forEach(btn => {
       if (btn) { btn.style.opacity = '0.3'; btn.title = 'Voice typing not supported in this browser'; }
     });
   }
 
-  function setupDictation(button, textarea, waveEl) {
+  function setupDictation(button, textarea, waveEl, aiBtn) {
     const rec = new SpeechRecognition();
     rec.continuous = false;
     rec.interimResults = false;
@@ -278,9 +292,19 @@ document.addEventListener('DOMContentLoaded', () => {
     rec.onstart  = () => { isRec = true;  button.classList.add('recording');    waveEl.classList.add('active'); };
     rec.onresult = e  => { const t = e.results[0][0].transcript; textarea.value = textarea.value.trim() ? textarea.value.trim() + ' ' + t : t; textarea.dispatchEvent(new Event('input')); };
     rec.onerror  = () => stopRec();
-    rec.onend    = () => stopRec();
+    rec.onend    = async () => { 
+      stopRec();
+      // Auto-polish the newly appended text block if it was recorded
+      if (textarea.value.trim()) {
+        const improved = await improveTextViaAI(textarea.value, aiBtn);
+        if (improved) {
+          textarea.value = improved;
+          textarea.dispatchEvent(new Event('input'));
+        }
+      }
+    };
 
-    function startRec() { try { rec.lang = speechLangSelect ? speechLangSelect.value : 'en-IN'; rec.start(); } catch(e){} }
+    function startRec() { try { rec.lang = speechLangSelect ? speechLangSelect.value : 'hi-IN'; rec.start(); } catch(e){} }
     function stopRec()  { isRec = false; button.classList.remove('recording'); waveEl.classList.remove('active'); try { rec.stop(); } catch(e){} }
 
     button.addEventListener('click', () => isRec ? stopRec() : startRec());
@@ -293,7 +317,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const token = getAuthToken();
     if (!token) return;
     try {
-      const res = await fetch('/api/departments', { headers: { 'Bypass-Tunnel-Reminder': 'true', 'X-Auth-Token': token } });
+      const res = await fetch('/api/departments', { headers: { 'Bypass-Tunnel-Reminder': 'true', 'Authorization': token } });
       if (res.ok) { departmentsData = await res.json(); populateDepartmentsDropdown(); }
     } catch (e) { console.error('fetchDepartments error:', e); }
   }
@@ -328,7 +352,7 @@ document.addEventListener('DOMContentLoaded', () => {
       try {
         const res = await fetch('/api/departments', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Bypass-Tunnel-Reminder': 'true', 'X-Auth-Token': getAuthToken() },
+          headers: { 'Content-Type': 'application/json', 'Bypass-Tunnel-Reminder': 'true', 'Authorization': getAuthToken() },
           body: JSON.stringify({ name })
         });
         if (res.ok) {
@@ -356,7 +380,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const token = getAuthToken();
     if (!token) return;
     try {
-      const res = await fetch('/api/reports', { headers: { 'Bypass-Tunnel-Reminder': 'true', 'X-Auth-Token': token } });
+      const res = await fetch('/api/reports', { headers: { 'Bypass-Tunnel-Reminder': 'true', 'Authorization': token } });
       if (res.ok) {
         const all = await res.json();
         activeReportsData = all.filter(r => r.status === 'Pending' || r.status === 'In Progress');
@@ -488,9 +512,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const method = report.isUpdate ? 'PUT' : 'POST';
         const res    = await fetch(url, {
           method, body: JSON.stringify(report.isUpdate ? report.data : report),
-          headers: { 'Content-Type': 'application/json', 'Bypass-Tunnel-Reminder': 'true', 'X-Auth-Token': getAuthToken() }
+          headers: { 'Content-Type': 'application/json', 'Bypass-Tunnel-Reminder': 'true', 'Authorization': getAuthToken() }
         });
-        if (res.status === 401) { localStorage.removeItem('auth_pin'); showPasscodePrompt(); return; }
+        if (res.status === 401) { localStorage.removeItem('auth_token'); window.location.href = '/login.html'; return; }
         if (!res.ok) throw new Error('sync failed');
       } catch { return; }
     }
@@ -548,10 +572,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const method = editingReportId ? 'PUT' : 'POST';
         const res    = await fetch(url, {
           method, body: JSON.stringify(data),
-          headers: { 'Content-Type': 'application/json', 'Bypass-Tunnel-Reminder': 'true', 'X-Auth-Token': getAuthToken() }
+          headers: { 'Content-Type': 'application/json', 'Bypass-Tunnel-Reminder': 'true', 'Authorization': getAuthToken() }
         });
 
-        if (res.status === 401) { localStorage.removeItem('auth_pin'); showPasscodePrompt(); return; }
+        if (res.status === 401) { localStorage.removeItem('auth_token'); window.location.href = '/login.html'; return; }
 
         if (res.ok) {
           if (successOverlay) {
@@ -591,60 +615,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (cancelEditFormBtn) cancelEditFormBtn.addEventListener('click', cancelEditing);
   if (refreshActiveBtn)  refreshActiveBtn.addEventListener('click',  fetchActiveReports);
 
-  // ============================================================
-  // FORGOT PIN MODAL
-  // ============================================================
-  if (forgotPasscodeBtn) {
-    forgotPasscodeBtn.addEventListener('click', e => { e.preventDefault(); if (forgotPinModal) forgotPinModal.style.display = 'flex'; });
-  }
-  if (closeForgotPinModalBtn) closeForgotPinModalBtn.addEventListener('click', () => { if (forgotPinModal) forgotPinModal.style.display = 'none'; });
-  if (confirmForgotPinBtn)    confirmForgotPinBtn.addEventListener('click',    () => { if (forgotPinModal) forgotPinModal.style.display = 'none'; });
-  if (forgotPinModal) forgotPinModal.addEventListener('click', e => { if (e.target === forgotPinModal) forgotPinModal.style.display = 'none'; });
-
-  // ============================================================
-  // CHANGE PIN MODAL
-  // ============================================================
-  function openMobilePinModal()  { if (mobileChangePinModal) { mobileChangePinModal.style.display = 'flex'; if (mobilePinError) mobilePinError.style.display = 'none'; if (mobilePinForm) mobilePinForm.reset(); } }
-  function closeMobilePinModal() { if (mobileChangePinModal) mobileChangePinModal.style.display = 'none'; }
-
-  if (mobileChangePinBtn)           mobileChangePinBtn.addEventListener('click',         openMobilePinModal);
-  if (closeMobileChangePinModalBtn) closeMobileChangePinModalBtn.addEventListener('click', closeMobilePinModal);
-  if (cancelMobileChangePinBtn)     cancelMobileChangePinBtn.addEventListener('click',    closeMobilePinModal);
-  if (mobileChangePinModal) mobileChangePinModal.addEventListener('click', e => { if (e.target === mobileChangePinModal) closeMobilePinModal(); });
-
-  if (mobilePinForm) {
-    mobilePinForm.addEventListener('submit', async e => {
-      e.preventDefault();
-      const currentPin = mobileCurrentPin ? mobileCurrentPin.value : '';
-      const newPin     = mobileNewPin     ? mobileNewPin.value     : '';
-      const confirmPin = mobileConfirmPin ? mobileConfirmPin.value : '';
-
-      if (mobilePinError) mobilePinError.style.display = 'none';
-
-      if (!currentPin || !newPin || !confirmPin) { if (mobilePinError) { mobilePinError.textContent = '❌ All fields are required.'; mobilePinError.style.display = 'block'; } return; }
-      if (newPin !== confirmPin) { if (mobilePinError) { mobilePinError.textContent = '❌ New PINs do not match!'; mobilePinError.style.display = 'block'; } return; }
-      if (newPin.length < 4)    { if (mobilePinError) { mobilePinError.textContent = '❌ PIN must be at least 4 characters.'; mobilePinError.style.display = 'block'; } return; }
-
-      try {
-        const res = await fetch('/api/security/update-pin', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Bypass-Tunnel-Reminder': 'true', 'X-Auth-Token': getAuthToken() },
-          body: JSON.stringify({ currentPin, newPin })
-        });
-        const result = await res.json();
-        if (res.ok) {
-          localStorage.setItem('auth_pin', newPin);
-          closeMobilePinModal();
-          showToastNotification('✅ Security PIN updated successfully!');
-          resetInactivityTimer();
-        } else {
-          if (mobilePinError) { mobilePinError.textContent = '❌ ' + (result.error || 'Failed to update PIN.'); mobilePinError.style.display = 'block'; }
-        }
-      } catch {
-        if (mobilePinError) { mobilePinError.textContent = '❌ Network error. Could not reach server.'; mobilePinError.style.display = 'block'; }
-      }
-    });
-  }
+  // Pin Logic Removed
 
   // ============================================================
   // HOLIDAYS & LEAVES (Mobile)
@@ -653,7 +624,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const token = getAuthToken();
     if (!token) return;
     try {
-      const res = await fetch('/api/holidays', { headers: { 'Bypass-Tunnel-Reminder': 'true', 'X-Auth-Token': token } });
+      const res = await fetch('/api/holidays', { headers: { 'Bypass-Tunnel-Reminder': 'true', 'Authorization': token } });
       if (res.ok) { mobileHolidaysData = await res.json(); renderMobileHolidays(); }
     } catch {
       if (mobileHolidaysList) mobileHolidaysList.innerHTML = '<p style="color:var(--text-muted);font-size:0.82rem;text-align:center;margin:1rem 0;">Unable to load holidays (offline?).</p>';
@@ -699,7 +670,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const token = getAuthToken();
     if (!token) return;
     try {
-      const res = await fetch(`/api/holidays/${id}`, { method: 'DELETE', headers: { 'Bypass-Tunnel-Reminder': 'true', 'X-Auth-Token': token } });
+      const res = await fetch(`/api/holidays/${id}`, { method: 'DELETE', headers: { 'Bypass-Tunnel-Reminder': 'true', 'Authorization': token } });
       if (res.ok) { await fetchMobileHolidays(); showToastNotification('🗑️ Holiday deleted.'); }
       else { const e = await res.json(); showToastNotification('❌ ' + (e.error || 'Delete failed.')); }
     } catch { showToastNotification('❌ Network error. Delete failed.'); }
@@ -747,7 +718,7 @@ document.addEventListener('DOMContentLoaded', () => {
       try {
         const res = await fetch('/api/holidays', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Bypass-Tunnel-Reminder': 'true', 'X-Auth-Token': getAuthToken() },
+          headers: { 'Content-Type': 'application/json', 'Bypass-Tunnel-Reminder': 'true', 'Authorization': getAuthToken() },
           body: JSON.stringify({ date, type, user, description: desc })
         });
         const result = await res.json();

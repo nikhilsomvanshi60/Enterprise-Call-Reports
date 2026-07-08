@@ -1,11 +1,5 @@
 {
   "bindIp": "0.0.0.0",
   "mobilePort": 3000,
-  "dashboardPort": 3001,
-  "allowedDomainUsers": [
-    ".\\Administrator",
-    "infodba"
-  ],
-  "allowedDomainGroups": [],
-  "enableADAuth": true
+  "dashboardPort": 3001
 }

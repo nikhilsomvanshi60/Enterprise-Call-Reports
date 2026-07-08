@@ -71,12 +71,6 @@
       </div>
 
       <div class="header-actions">
-        <button id="accessUsersBtn" class="btn btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.85rem;">
-          Access Users
-        </button>
-        <button id="changePinBtn" class="btn btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.85rem;">
-          🔑 Change PIN
-        </button>
         <button id="refreshBtn" class="btn btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.85rem;">
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
             stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -163,6 +157,9 @@
       <button id="tabHolidaysBtn" class="theme-toggle-btn"
         style="border-radius: 8px; padding: 0.6rem 1.25rem; font-weight: 600; cursor: pointer; border: 1px solid transparent; background: transparent; color: var(--text-secondary);">📅
         Holidays & Leaves</button>
+      <button id="tabUsersBtn" class="theme-toggle-btn"
+        style="border-radius: 8px; padding: 0.6rem 1.25rem; font-weight: 600; cursor: pointer; border: 1px solid transparent; background: transparent; color: var(--text-secondary);">👥
+        Registered Users</button>
     </div>
 
     <!-- TAB 1 CONTENT: REPORTS LOG -->
@@ -293,36 +290,26 @@
       </div>
     </div>
 
-    <!-- Access Users Modal -->
-    <div id="accessUsersModal" class="modal-overlay">
-      <div class="modal-card" style="max-width: 520px;">
-        <div class="modal-header">
-          <h3>Allowed Dashboard Users</h3>
-          <button id="closeAccessUsersModalBtn" class="close-modal-btn">&times;</button>
+    <!-- TAB 3 CONTENT: REGISTERED USERS -->
+    <div id="tabUsersContent" style="display: none;">
+      <div class="chart-card" style="padding: 1.5rem; margin-bottom: 1rem;">
+        <div class="chart-title-row" style="margin-bottom: 1rem;">
+          <h3 style="margin: 0;">Manage Firebase Users</h3>
+          <span class="chart-meta">All registered accounts</span>
         </div>
-
-        <form id="accessUserForm" style="display: flex; gap: 0.75rem; align-items: flex-end; margin-bottom: 1rem;">
-          <div class="form-group" style="flex: 1; margin-bottom: 0;">
-            <label for="accessUserInput">Domain User</label>
-            <input type="text" id="accessUserInput" placeholder="DOMAIN\\username or username" required>
-          </div>
-          <button type="submit" class="btn btn-primary" style="width: auto; padding: 0.75rem 1rem; margin-top: 0;">Add</button>
-        </form>
-
-        <div id="accessUsersError"
-          style="display: none; color: var(--status-noanswer); font-size: 0.85rem; margin-bottom: 1rem; font-weight: 500;"></div>
-
-        <div class="table-container" style="margin-top: 0; max-height: 320px; overflow-y: auto;">
-          <table>
+        <div class="table-container" style="max-height: 500px; overflow-y: auto;">
+          <table id="usersTable">
             <thead>
               <tr>
-                <th>User</th>
-                <th style="width: 90px; text-align: center;">Action</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th style="width: 150px;">Joined</th>
+                <th style="width: 170px; text-align: center;">Actions</th>
               </tr>
             </thead>
-            <tbody id="accessUsersTableBody">
+            <tbody id="usersTableBody">
               <tr>
-                <td colspan="2" class="no-data-msg">Loading allowed users...</td>
+                <td colspan="4" class="no-data-msg">Loading users...</td>
               </tr>
             </tbody>
           </table>
@@ -398,40 +385,24 @@
       </div>
     </div>
 
-    <!-- Change PIN Modal -->
-    <div id="pinModal" class="modal-overlay">
+    <!-- Reset Password Modal -->
+    <div id="resetPasswordModal" class="modal-overlay">
       <div class="modal-card" style="max-width: 400px;">
         <div class="modal-header">
-          <h3>Update Security PIN</h3>
-          <button id="closePinModalBtn" class="close-modal-btn">&times;</button>
+          <h3>Reset User Password</h3>
+          <button id="closeResetPasswordModalBtn" class="close-modal-btn">&times;</button>
         </div>
-        <form id="pinForm">
+        <form id="resetPasswordForm">
+          <input type="hidden" id="resetPasswordUserId">
+          <p style="margin-bottom: 1rem; color: var(--text-secondary); font-size: 0.9rem;">Resetting password for: <strong id="resetPasswordUserName"></strong></p>
           <div class="form-group">
-            <label for="currentPinInput">Current PIN *</label>
-            <input type="password" id="currentPinInput" placeholder="••••" required
-              style="text-align: center; font-size: 1.25rem;">
+            <label for="newPasswordInput">New Password *</label>
+            <input type="password" id="newPasswordInput" placeholder="Enter new password" required minlength="6" style="padding: 0.75rem; border-radius: 8px; width: 100%; border: 1px solid var(--border-color); background: rgba(255,255,255,0.05); color: var(--text-primary); font-family: 'Outfit';">
           </div>
-          <div class="form-group">
-            <label for="newPinInput">New PIN *</label>
-            <input type="password" id="newPinInput" placeholder="••••" required
-              style="text-align: center; font-size: 1.25rem;" minlength="4" maxlength="8">
-          </div>
-          <div class="form-group">
-            <label for="confirmPinInput">Confirm New PIN *</label>
-            <input type="password" id="confirmPinInput" placeholder="••••" required
-              style="text-align: center; font-size: 1.25rem;" minlength="4" maxlength="8">
-          </div>
-
-          <div id="pinError"
-            style="color: var(--status-noanswer); font-size: 0.85rem; margin-bottom: 1rem; font-weight: 500; display: none; text-align: center;">
-            ❌ Error message here
-          </div>
-
+          <div id="resetPasswordError" style="display: none; color: var(--status-noanswer); font-size: 0.85rem; margin-bottom: 1rem;"></div>
           <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
-            <button type="button" id="cancelPinBtn" class="btn btn-secondary"
-              style="flex: 1; padding: 0.75rem;">Cancel</button>
-            <button type="submit" class="btn btn-primary" style="flex: 2; padding: 0.75rem; margin-top: 0;">Update
-              PIN</button>
+            <button type="button" id="cancelResetPasswordBtn" class="btn btn-secondary" style="flex: 1; padding: 0.75rem;">Cancel</button>
+            <button type="submit" class="btn btn-primary" style="flex: 2; padding: 0.75rem; margin-top: 0;">Reset Password</button>
           </div>
         </form>
       </div>

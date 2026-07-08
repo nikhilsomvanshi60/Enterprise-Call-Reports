@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Windows Domain Login - IT Dashboard</title>
+  <title>IT CALL REPORT LOGIN</title>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
@@ -15,6 +16,7 @@
       --text-primary: #f4f4f5;
       --text-secondary: #a1a1aa;
       --status-noanswer: #ef4444;
+      --status-success: #10b981;
     }
 
     * {
@@ -26,7 +28,7 @@
 
     body {
       background-color: var(--bg-dark);
-      background-image: 
+      background-image:
         radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
         radial-gradient(at 100% 100%, rgba(239, 68, 68, 0.08) 0px, transparent 50%);
       min-height: 100vh;
@@ -51,8 +53,15 @@
     }
 
     @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(12px); }
-      to { opacity: 1; transform: translateY(0); }
+      from {
+        opacity: 0;
+        transform: translateY(12px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
 
     .logo-header {
@@ -72,6 +81,7 @@
       margin-bottom: 0.4rem;
       background: linear-gradient(135deg, #fff 0%, #a1a1aa 100%);
       -webkit-background-clip: text;
+      background-clip: text;
       -webkit-text-fill-color: transparent;
     }
 
@@ -135,10 +145,7 @@
       cursor: not-allowed;
     }
 
-    .error-box {
-      background: rgba(239, 68, 68, 0.08);
-      border: 1px solid rgba(239, 68, 68, 0.25);
-      color: var(--status-noanswer);
+    .message-box {
       padding: 0.75rem 1rem;
       border-radius: 8px;
       font-size: 0.85rem;
@@ -147,95 +154,263 @@
       line-height: 1.4;
     }
 
-    .hint {
-      font-size: 0.78rem;
+    .message-box.error {
+      background: rgba(239, 68, 68, 0.08);
+      border: 1px solid rgba(239, 68, 68, 0.25);
+      color: var(--status-noanswer);
+    }
+
+    .message-box.success {
+      background: rgba(16, 185, 129, 0.08);
+      border: 1px solid rgba(16, 185, 129, 0.25);
+      color: var(--status-success);
+    }
+
+    .switch-link {
+      text-align: center;
+      margin-top: 1.5rem;
+      font-size: 0.85rem;
       color: var(--text-secondary);
-      margin-top: 0.25rem;
-      font-style: italic;
+    }
+
+    .switch-link a {
+      color: var(--primary);
+      text-decoration: none;
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    .switch-link a:hover {
+      text-decoration: underline;
+    }
+
+    .form-section {
+      display: none;
+    }
+
+    .form-section.active {
+      display: block;
+      animation: fadeIn 0.3s ease-out;
     }
   </style>
 </head>
+
 <body>
 
   <div class="login-container">
     <div class="logo-header">
       <div class="logo-icon">🔑</div>
-      <h1>IT Dashboard Access</h1>
-      <p class="subtitle">Log in using Windows PC or Domain Credentials</p>
+      <h1 id="pageTitle">IT Dashboard Access</h1>
+      <p class="subtitle" id="pageSubtitle">Secure Login</p>
     </div>
 
-    <div id="errorBox" class="error-box"></div>
+    <div id="messageBox" class="message-box"></div>
 
-    <form id="loginForm">
-      <div class="form-group">
-        <label for="domain">Domain / PC Name</label>
-        <input type="text" id="domain" placeholder="e.g. COMPANY_DOMAIN or . for Local PC" required>
-        <span class="hint">Use <b>.</b> (dot) to login with local PC accounts</span>
+    <!-- Login Form -->
+    <div id="loginSection" class="form-section active">
+      <form id="loginForm">
+        <div class="form-group">
+          <label for="loginEmail">Email Address</label>
+          <input type="email" id="loginEmail" placeholder="e.g. user@company.com" required>
+        </div>
+        <div class="form-group">
+          <label for="loginPassword">Password</label>
+          <input type="password" id="loginPassword" placeholder="Enter password" required>
+        </div>
+        <button type="submit" id="loginBtn" class="btn">Log In</button>
+      </form>
+      <div class="switch-link">
+        <a onclick="switchSection('forgotSection')">Forgot Password?</a><br><br>
+        Don't have an account? <a onclick="switchSection('registerSection')">Register</a>
       </div>
+    </div>
 
-      <div class="form-group">
-        <label for="username">Username</label>
-        <input type="text" id="username" placeholder="e.g. Administrator" required>
+    <!-- Register Form -->
+    <div id="registerSection" class="form-section">
+      <form id="registerForm">
+        <div class="form-group">
+          <label for="regName">Full Name</label>
+          <input type="text" id="regName" placeholder="e.g. John Doe" required>
+        </div>
+        <div class="form-group">
+          <label for="regEmail">Email Address</label>
+          <input type="email" id="regEmail" placeholder="e.g. user@company.com" required>
+        </div>
+        <div class="form-group">
+          <label for="regPassword">Password</label>
+          <input type="password" id="regPassword" placeholder="Create a password" required>
+        </div>
+        <button type="submit" id="regBtn" class="btn">Register</button>
+      </form>
+      <div class="switch-link">
+        Already have an account? <a onclick="switchSection('loginSection')">Log In</a>
       </div>
+    </div>
 
-      <div class="form-group">
-        <label for="password">Password</label>
-        <input type="password" id="password" placeholder="Windows password" required>
+    <!-- Forgot Password Form -->
+    <div id="forgotSection" class="form-section">
+      <form id="forgotForm">
+        <div class="form-group">
+          <label for="forgotEmail">Email Address</label>
+          <input type="email" id="forgotEmail" placeholder="Registered email" required>
+        </div>
+        <div class="form-group">
+          <label for="forgotNewPassword">New Password</label>
+          <input type="password" id="forgotNewPassword" placeholder="Enter new password" required>
+        </div>
+        <button type="submit" id="forgotBtn" class="btn">Reset Password</button>
+      </form>
+      <div class="switch-link">
+        Remembered your password? <a onclick="switchSection('loginSection')">Log In</a>
       </div>
+    </div>
 
-      <button type="submit" id="submitBtn" class="btn">Log In</button>
-    </form>
   </div>
 
   <script>
-    const loginForm = document.getElementById('loginForm');
-    const domainInput = document.getElementById('domain');
-    const usernameInput = document.getElementById('username');
-    const passwordInput = document.getElementById('password');
-    const submitBtn = document.getElementById('submitBtn');
-    const errorBox = document.getElementById('errorBox');
+    const messageBox = document.getElementById('messageBox');
 
-    loginForm.addEventListener('submit', async (e) => {
+    // Auto-redirect if already logged in
+    window.onload = () => {
+      const token = sessionStorage.getItem('ad_session_token');
+      if (token) {
+        window.location.href = `/dashboard.html?token=${encodeURIComponent(token)}`;
+      }
+    };
+
+    function showMessage(msg, isError = true) {
+      messageBox.textContent = (isError ? '❌ ' : '✅ ') + msg;
+      messageBox.className = 'message-box ' + (isError ? 'error' : 'success');
+      messageBox.style.display = 'block';
+    }
+
+    function switchSection(sectionId) {
+      document.querySelectorAll('.form-section').forEach(sec => sec.classList.remove('active'));
+      document.getElementById(sectionId).classList.add('active');
+      messageBox.style.display = 'none';
+
+      const title = document.getElementById('pageTitle');
+      const subtitle = document.getElementById('pageSubtitle');
+
+      if (sectionId === 'loginSection') {
+        title.textContent = 'IT Dashboard Access';
+        subtitle.textContent = 'Secure Login';
+      } else if (sectionId === 'registerSection') {
+        title.textContent = 'Create Account';
+        subtitle.textContent = 'Register for Dashboard Access';
+      } else if (sectionId === 'forgotSection') {
+        title.textContent = 'Reset Password';
+        subtitle.textContent = 'Set a new password for your account';
+      }
+    }
+
+    // Login Form Submit
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
       e.preventDefault();
-      
-      errorBox.style.display = 'none';
-      submitBtn.disabled = true;
-      submitBtn.textContent = 'Authenticating...';
+      const btn = document.getElementById('loginBtn');
+      btn.disabled = true;
+      btn.textContent = 'Authenticating...';
+      messageBox.style.display = 'none';
 
       const payload = {
-        domain: domainInput.value.trim(),
-        username: usernameInput.value.trim(),
-        password: passwordInput.value
+        email: document.getElementById('loginEmail').value.trim(),
+        password: document.getElementById('loginPassword').value
       };
 
       try {
-        const response = await fetch('/api/auth/domain-login', {
+        const response = await fetch('/api/auth/login', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
-
         const result = await response.json();
-        
         if (response.ok && result.success) {
-          // Save the temporary secure session token in sessionStorage
           sessionStorage.setItem('ad_session_token', result.token);
-          // Redirect directly to dashboard
-          window.location.href = `/dashboard.html?token=${encodeURIComponent(result.token)}`;
+          if (window.location.port === '3001') {
+            window.location.href = `/dashboard.html?token=${encodeURIComponent(result.token)}`;
+          } else {
+            window.location.href = `/?token=${encodeURIComponent(result.token)}`;
+          }
         } else {
-          errorBox.textContent = '❌ ' + (result.error || 'Access Denied: Invalid credentials.');
-          errorBox.style.display = 'block';
+          showMessage(result.error || 'Access Denied: Invalid credentials.');
         }
       } catch (err) {
-        errorBox.textContent = '❌ Connection failed. Verify local network server status.';
-        errorBox.style.display = 'block';
+        showMessage('Connection failed. Verify server status.');
       } finally {
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'Log In';
+        btn.disabled = false;
+        btn.textContent = 'Log In';
+      }
+    });
+
+    // Register Form Submit
+    document.getElementById('registerForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('regBtn');
+      btn.disabled = true;
+      btn.textContent = 'Registering...';
+      messageBox.style.display = 'none';
+
+      const payload = {
+        name: document.getElementById('regName').value.trim(),
+        email: document.getElementById('regEmail').value.trim(),
+        password: document.getElementById('regPassword').value
+      };
+
+      try {
+        const response = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const result = await response.json();
+        if (response.ok && result.success) {
+          showMessage('Registration successful! You can now log in.', false);
+          setTimeout(() => switchSection('loginSection'), 2000);
+        } else {
+          showMessage(result.error || 'Registration failed.');
+        }
+      } catch (err) {
+        showMessage('Connection failed. Verify server status.');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Register';
+      }
+    });
+
+    // Forgot Password Form Submit
+    document.getElementById('forgotForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('forgotBtn');
+      btn.disabled = true;
+      btn.textContent = 'Updating...';
+      messageBox.style.display = 'none';
+
+      const payload = {
+        email: document.getElementById('forgotEmail').value.trim(),
+        newPassword: document.getElementById('forgotNewPassword').value
+      };
+
+      try {
+        const response = await fetch('/api/auth/forgot-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const result = await response.json();
+        if (response.ok && result.success) {
+          showMessage('Password updated successfully! Please log in.', false);
+          setTimeout(() => switchSection('loginSection'), 2000);
+        } else {
+          showMessage(result.error || 'Failed to update password.');
+        }
+      } catch (err) {
+        showMessage('Connection failed. Verify server status.');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Reset Password';
       }
     });
   </script>
 </body>
+
 </html>
