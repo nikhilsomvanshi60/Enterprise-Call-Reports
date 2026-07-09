@@ -1,0 +1,45 @@
+﻿Ôùç injected env (1) from .env // tip: Ôîÿ suppress logs { quiet: true }
+
+­ƒô▒ NIK Call Report Mobile Server is running at: http://localhost:3000
+­ƒöä Starting permanent secure tunnel via Ngrok (Domain: undeprecated-undeprecatingly-kathlyn.ngrok-free.dev)...
+
+==================================================================
+­ƒƒó Call Logger Global Tunnel Established (Ngrok Static Domain)!
+­ƒöù Mobile Web App URL: https://undeprecated-undeprecatingly-kathlyn.ngrok-free.dev
+==================================================================
+
+ÔûäÔûäÔûäÔûäÔûäÔûäÔûäÔûäÔûäÔûäÔûäÔûäÔûäÔûäÔûäÔûäÔûäÔûäÔûäÔûäÔûäÔûäÔûäÔûäÔûäÔûäÔûäÔûäÔûäÔûäÔûäÔûäÔûäÔûäÔûä
+Ôûê ÔûäÔûäÔûäÔûäÔûä ÔûêÔûäÔûÇ ÔûÇ  ÔûêÔûäÔûêÔûä ÔûäÔûäÔûäÔûÇ ÔûêÔûê ÔûäÔûäÔûäÔûäÔûä Ôûê
+Ôûê Ôûê   Ôûê Ôûê   ÔûêÔûÇÔûêÔûÇ ÔûÇÔûÇÔûÇ ÔûÇÔûêÔûÇÔûäÔûêÔûê Ôûê   Ôûê Ôûê
+Ôûê ÔûêÔûäÔûäÔûäÔûê ÔûêÔûäÔûêÔûÇ ÔûäÔûÇÔûäÔûäÔûäÔûÇÔûÇ ÔûêÔûÇÔûÇÔûêÔûäÔûê ÔûêÔûäÔûäÔûäÔûê Ôûê
+ÔûêÔûäÔûäÔûäÔûäÔûäÔûäÔûäÔûêÔûäÔûê Ôûê ÔûêÔûäÔûê ÔûÇÔûäÔûêÔûäÔûê ÔûÇÔûäÔûêÔûäÔûäÔûäÔûäÔûäÔûäÔûäÔûê
+ÔûêÔûäÔûäÔûä ÔûêÔûÇÔûäÔûê Ôûê Ôûä  ÔûÇÔûê   ÔûÇÔûÇ ÔûêÔûÇÔûäÔûäÔûÇÔûêÔûäÔûä ÔûÇ Ôûê
+ÔûêÔûêÔûäÔûêÔûäÔûÇÔûÇÔûä Ôûä  ÔûäÔûäÔûäÔûêÔûêÔûêÔûêÔûäÔûÇÔûäÔûêÔûêÔûä Ôûê  ÔûÇÔûêÔûä ÔûäÔûê
+Ôûê ÔûÇÔûÇÔûä ÔûêÔûäÔûÇÔûäÔûäÔûäÔûÇ Ôûê  ÔûÇ Ôûê ÔûêÔûê Ôûê ÔûäÔûê Ôûä ÔûÇÔûÇÔûêÔûê
+Ôûê  ÔûÇÔûêÔûêÔûêÔûäÔûÇÔûÇÔûêÔûä ÔûêÔûäÔûÇÔûê ÔûäÔûäÔûäÔûÇÔûÇÔûêÔûêÔûê ÔûêÔûÇÔûêÔûê ÔûêÔûêÔûê
+Ôûê ÔûÇÔûÇÔûÇÔûÇÔûÇÔûäÔûä  ÔûêÔûêÔûäÔûê  ÔûÇÔûê ÔûêÔûÇ   ÔûÇÔûä     Ôûä Ôûê
+ÔûêÔûê ÔûêÔûêÔûÇ ÔûäÔûÇÔûÇÔûêÔûäÔûÇÔûê  Ôûä  ÔûäÔûê ÔûäÔûÇÔûê ÔûäÔûÇÔûäÔûê ÔûêÔûäÔûÇÔûê
+Ôûê Ôûä ÔûêÔûêÔûÇÔûäÔûÇ  ÔûêÔûêÔûêÔûäÔûäÔûê    ÔûÇÔûäÔûê ÔûêÔûêÔûÇÔûäÔûêÔûÇÔûäÔûÇÔûÇÔûê
+ÔûêÔûêÔûÇÔûÇÔûäÔûÇ ÔûäÔûêÔûä  ÔûÇÔûÇÔûÇ ÔûêÔûäÔûê ÔûêÔûêÔûä Ôûä ÔûäÔûä ÔûÇÔûÇÔûä ÔûäÔûê
+ÔûêÔûäÔûêÔûäÔûêÔûêÔûäÔûäÔûäÔûÇÔûêÔûÇ ÔûêÔûÇÔûê ÔûÇÔûäÔûê ÔûêÔûêÔûäÔûê ÔûäÔûäÔûä ÔûäÔûêÔûêÔûäÔûê
+Ôûê ÔûäÔûäÔûäÔûäÔûä ÔûêÔûêÔûä Ôûê ÔûÇÔûäÔûêÔûäÔûäÔûêÔûä  ÔûÇ  ÔûêÔûäÔûê  ÔûÇÔûÇÔûÇÔûê
+Ôûê Ôûê   Ôûê ÔûêÔûÇÔûÇÔûäÔûäÔûÇÔûÇÔûêÔûÇÔûäÔûÇÔûêÔûäÔûä   ÔûäÔûäÔûäÔûäÔûä  ÔûêÔûÇÔûê
+Ôûê ÔûêÔûäÔûäÔûäÔûê Ôûê ÔûêÔûäÔûä ÔûêÔûê ÔûÇÔûÇÔûÇÔûê ÔûäÔûä ÔûÇÔûÇ ÔûêÔûêÔûêÔûêÔûêÔûÇÔûê
+ÔûêÔûäÔûäÔûäÔûäÔûäÔûäÔûäÔûêÔûäÔûêÔûêÔûäÔûäÔûäÔûêÔûêÔûäÔûäÔûäÔûêÔûäÔûäÔûêÔûêÔûêÔûäÔûêÔûäÔûäÔûêÔûäÔûêÔûêÔûê
+
+­ƒôè IT-Daily Call Report Dashboard is running at: http://localhost:3001/dashboard.html
+node : (node:9972) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to 
+security vulnerabilities, as the arguments are not escaped, only concatenated.
+At line:1 char:1
++ node server.js 2>&1 | Out-File error_log.txt -Encoding utf8
++ ~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ((node:9972) [DE...y concatenated.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+(Use `node --trace-deprecation ...` to show where the warning was created)
+[2026-07-09T10:34:28.675Z]  @firebase/database: FIREBASE WARNING: Using an unspecified index. Your data will be 
+downloaded and filtered on the client. Consider adding ".indexOn": "email" at /users to your security rules for better 
+performance. 
+[2026-07-09T10:37:14.753Z]  @firebase/database: FIREBASE WARNING: Using an unspecified index. Your data will be 
+downloaded and filtered on the client. Consider adding ".indexOn": "email" at /users to your security rules for better 
+performance. 

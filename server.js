@@ -9,6 +9,7 @@ const qrcode = require('qrcode-terminal');
 const crypto = require('crypto');
 const ExcelJS = require('exceljs');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+const OpenAI = require('openai');
 const { initializeApp, cert } = require('firebase-admin/app');
 const { getDatabase } = require('firebase-admin/database');
 const bcrypt = require('bcryptjs');
@@ -29,6 +30,8 @@ const TUNNEL_FILE = path.join(__dirname, 'public', 'tunnel_info.txt');
 const SECURITY_FILE = path.join(DATA_DIR, 'security_config.json');
 const DEPARTMENTS_FILE = path.join(DATA_DIR, 'departments.json');
 const HOLIDAYS_FILE = path.join(DATA_DIR, 'holidays.json');
+const BILLS_FILE = path.join(DATA_DIR, 'bills.json');
+const BILLS_CSV_FILE = path.join(DATA_DIR, 'bills.csv');
 const BACKUPS_DIR = path.join(DATA_DIR, 'backups');
 const NETWORK_CONFIG_FILE = path.join(DATA_DIR, 'network_config.json');
 
@@ -202,6 +205,12 @@ function createBackup() {
     if (fs.existsSync(CSV_FILE)) {
       fs.copyFileSync(CSV_FILE, path.join(BACKUPS_DIR, `reports_backup_${today}.csv`));
     }
+    if (fs.existsSync(BILLS_FILE)) {
+      fs.copyFileSync(BILLS_FILE, path.join(BACKUPS_DIR, `bills_backup_${today}.json`));
+    }
+    if (fs.existsSync(BILLS_CSV_FILE)) {
+      fs.copyFileSync(BILLS_CSV_FILE, path.join(BACKUPS_DIR, `bills_backup_${today}.csv`));
+    }
   } catch (err) {
     console.error('⚠️ Failed to create database backup:', err);
   }
@@ -250,6 +259,30 @@ function readHolidays() {
   } catch (e) {
     return [];
   }
+}
+
+function readBills() {
+  if (!fs.existsSync(BILLS_FILE)) {
+    fs.writeFileSync(BILLS_FILE, JSON.stringify([], null, 2), 'utf8');
+    return [];
+  }
+  try {
+    return JSON.parse(fs.readFileSync(BILLS_FILE, 'utf8') || '[]');
+  } catch (e) {
+    return [];
+  }
+}
+
+function writeBillsCSV(bills) {
+  const headers = ['Date', 'ChallanNo', 'Supplier', 'ItemDesc', 'Qty', 'Amount', 'PONumber', 'Purpose', 'Remarks', 'HandOver'];
+  let csvContent = headers.join(',') + '\n';
+  bills.forEach(b => {
+    const csvRow = [
+      b.date, b.challanNo, b.supplier, b.itemDesc, b.qty, b.amount, b.poNumber, b.purpose, b.remarks, b.handOver
+    ];
+    csvContent += csvRow.map(escapeCSV).join(',') + '\n';
+  });
+  fs.writeFileSync(BILLS_CSV_FILE, csvContent, 'utf8');
 }
 
 // -------------------------------------------------------------
@@ -413,31 +446,42 @@ async function saveDiskExcel(reports) {
   }
 }
 
+async function saveBillsDiskExcel(bills) {
+  try {
+    // Generate workbook using the existing generateBillsWorkbook function defined below
+    const workbook = await generateBillsWorkbook(bills);
+    await workbook.xlsx.writeFile(path.join(DATA_DIR, 'bills.xlsx'));
+  } catch (err) {
+    console.error('⚠️ Failed to save Excel bills to disk:', err);
+  }
+}
+
 // -------------------------------------------------------------
 // MOBILE PORT ROUTING (Port 3000)
 // -------------------------------------------------------------
 
-// API: Get departments list
-appMobile.get('/api/departments', tokenAuth, (req, res) => {
-  res.json(readDepartments());
-});
+// API: Get and Post departments list (accessible to both Mobile and Dashboard)
+[appMobile, appDashboard].forEach(app => {
+  app.get('/api/departments', tokenAuth, (req, res) => {
+    res.json(readDepartments());
+  });
 
-// API: Add new department name
-appMobile.post('/api/departments', tokenAuth, (req, res) => {
-  const { name } = req.body;
-  if (!name || name.trim() === '') return res.status(400).json({ error: 'Department name is required.' });
-  const sanitized = sanitizeString(name.trim());
-  const list = readDepartments();
-  if (list.map(d => d.toLowerCase()).includes(sanitized.toLowerCase())) {
-    return res.status(400).json({ error: 'Department already exists.' });
-  }
-  list.push(sanitized);
-  try {
-    fs.writeFileSync(DEPARTMENTS_FILE, JSON.stringify(list, null, 2), 'utf8');
-    res.status(201).json({ success: true, departments: list });
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to save department name.' });
-  }
+  app.post('/api/departments', tokenAuth, (req, res) => {
+    const { name } = req.body;
+    if (!name || name.trim() === '') return res.status(400).json({ error: 'Department name is required.' });
+    const sanitized = sanitizeString(name.trim());
+    const list = readDepartments();
+    if (list.map(d => d.toLowerCase()).includes(sanitized.toLowerCase())) {
+      return res.status(400).json({ error: 'Department already exists.' });
+    }
+    list.push(sanitized);
+    try {
+      fs.writeFileSync(DEPARTMENTS_FILE, JSON.stringify(list, null, 2), 'utf8');
+      res.status(201).json({ success: true, departments: list });
+    } catch (err) {
+      res.status(500).json({ error: 'Failed to save department name.' });
+    }
+  });
 });
 
 // API: Get active/pending reports (Read active list on Mobile)
@@ -554,6 +598,92 @@ appMobile.delete('/api/holidays/:id', tokenAuth, (req, res) => {
     res.status(500).json({ error: 'Failed to delete holiday/leave.' });
   }
 });
+
+// API: Get all bills
+[appMobile, appDashboard].forEach(app => {
+  app.get('/api/bills', (req, res, next) => {
+    // Both apps can read
+    res.json(readBills());
+  });
+
+  // API: Save new bill
+  app.post('/api/bills', tokenAuth, (req, res) => {
+    const { date, refCode, challanNo, supplier, poNumber, purpose, remarks, handOver, items } = req.body;
+    
+    // Fallback for single item from old form structure (if any)
+    const singleItemDesc = req.body.itemDesc;
+    const singleQty = req.body.qty;
+    const singleAmount = req.body.amount;
+
+    if (!date || !challanNo) return res.status(400).json({ error: 'Date and Challan No are required.' });
+    
+    const bills = readBills();
+    const newBills = [];
+
+    if (items && Array.isArray(items) && items.length > 0) {
+      items.forEach(item => {
+        newBills.push({
+          id: 'bill_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+          date,
+          refCode: refCode || '',
+          challanNo,
+          supplier: supplier || '',
+          itemDesc: item.itemDesc || '',
+          qty: item.qty || 0,
+          amount: item.amount || 0,
+          poNumber: poNumber || '',
+          purpose: purpose || '',
+          remarks: remarks || '',
+          handOver: handOver || ''
+        });
+      });
+    } else {
+      newBills.push({
+        id: 'bill_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+        date,
+        refCode: refCode || '',
+        challanNo,
+        supplier: supplier || '',
+        itemDesc: singleItemDesc || '',
+        qty: singleQty || 0,
+        amount: singleAmount || 0,
+        poNumber: poNumber || '',
+        purpose: purpose || '',
+        remarks: remarks || '',
+        handOver: handOver || ''
+      });
+    }
+
+    bills.push(...newBills);
+    try {
+      fs.writeFileSync(BILLS_FILE, JSON.stringify(bills, null, 2), 'utf8');
+      writeBillsCSV(bills);
+      saveBillsDiskExcel(bills);
+      createBackup();
+      res.status(201).json({ success: true, count: newBills.length });
+    } catch (err) {
+      res.status(500).json({ error: 'Failed to save bill.' });
+    }
+  });
+
+  // API: Delete bill
+  app.delete('/api/bills/:id', (req, res, next) => {
+    const { id } = req.params;
+    const bills = readBills();
+    const updated = bills.filter(b => b.id !== id);
+    if (bills.length === updated.length) return res.status(404).json({ error: 'Bill not found.' });
+    try {
+      fs.writeFileSync(BILLS_FILE, JSON.stringify(updated, null, 2), 'utf8');
+      writeBillsCSV(updated);
+      saveBillsDiskExcel(updated);
+      createBackup();
+      res.json({ success: true, message: 'Bill deleted.' });
+    } catch (err) {
+      res.status(500).json({ error: 'Failed to delete bill.' });
+    }
+  });
+});
+
 
 // -------------------------------------------------------------
 // ADMIN DASHBOARD ROUTING (Port 3001) - Secure Auth
@@ -680,25 +810,37 @@ appDashboard.get('/', (req, res) => {
       return res.status(400).json({ error: 'Text is required.' });
     }
 
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      return res.status(500).json({ error: 'AI API Key is missing. Please set GEMINI_API_KEY.' });
+    const openAIKey = process.env.OPENAI_API_KEY;
+    const geminiKey = process.env.GEMINI_API_KEY;
+
+    if (!openAIKey && !geminiKey) {
+      return res.status(500).json({ error: 'AI API Keys are missing. Please set OPENAI_API_KEY or GEMINI_API_KEY.' });
     }
 
-    try {
-      const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-
-      const prompt = `You are a professional IT support text enhancer.
-The user provided the following text (which might be in Hindi, Hinglish, or broken English).
-Please translate it to perfect, grammatically correct professional English.
-Output ONLY the final corrected text, without any quotes, conversational filler, or explanations.
+    const prompt = `You are an expert IT support proofreader.
+Fix all spelling, punctuation, and grammatical errors in the following text.
+Translate it to perfect, grammatically correct professional English if it's in Hindi, Hinglish, or broken English.
+Output ONLY the final corrected text as fast as possible, without any quotes, conversational filler, or explanations.
 
 Text:
 "${text}"`;
 
-      const result = await model.generateContent(prompt);
-      const responseText = result.response.text().trim();
+    try {
+      let responseText = '';
+      
+      if (openAIKey) {
+        const openai = new OpenAI({ apiKey: openAIKey });
+        const completion = await openai.chat.completions.create({
+          messages: [{ role: "system", content: "You are an expert proofreader." }, { role: "user", content: prompt }],
+          model: "gpt-4o-mini",
+        });
+        responseText = completion.choices[0].message.content.trim();
+      } else if (geminiKey) {
+        const genAI = new GoogleGenerativeAI(geminiKey);
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const result = await model.generateContent(prompt);
+        responseText = result.response.text().trim();
+      }
       
       res.json({ success: true, correctedText: responseText });
     } catch (error) {
@@ -781,6 +923,69 @@ appDashboard.delete('/api/reports/:id', (req, res) => {
     res.json({ success: true, message: 'Report deleted.' });
   } catch (err) {
     res.status(500).json({ error: 'Failed to delete report.' });
+  }
+});
+
+// EXCELJS WORKBOOK GENERATION FOR BILLS
+async function generateBillsWorkbook(bills) {
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet('Bills & Invoices');
+
+  worksheet.columns = [
+    { header: 'Bill Date', key: 'date', width: 15 },
+    { header: 'Bill / Challan No.', key: 'challanNo', width: 20 },
+    { header: 'Supplier', key: 'supplier', width: 25 },
+    { header: 'Item Description', key: 'itemDesc', width: 40 },
+    { header: 'Qty', key: 'qty', width: 10 },
+    { header: 'Amount', key: 'amount', width: 15 },
+    { header: 'PO Number', key: 'poNumber', width: 15 },
+    { header: 'Purpose', key: 'purpose', width: 20 },
+    { header: 'Remarks', key: 'remarks', width: 25 },
+    { header: 'Hand Over to / Date', key: 'handOver', width: 25 }
+  ];
+
+  worksheet.views = [{ showGridLines: true }];
+  const headerRow = worksheet.getRow(1);
+  headerRow.height = 25;
+  headerRow.eachCell(cell => {
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF10B981' } };
+    cell.font = { name: 'Segoe UI', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+    cell.alignment = { vertical: 'middle', horizontal: 'center' };
+  });
+
+  bills.forEach((b, i) => {
+    const row = worksheet.addRow({
+      date: b.date || '',
+      challanNo: b.challanNo || '',
+      supplier: b.supplier || '',
+      itemDesc: b.itemDesc || '',
+      qty: parseFloat(b.qty) || 0,
+      amount: parseFloat(b.amount) || 0,
+      poNumber: b.poNumber || '',
+      purpose: b.purpose || '',
+      remarks: b.remarks || '',
+      handOver: b.handOver || ''
+    });
+    row.eachCell(cell => {
+      cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+    });
+  });
+
+  return workbook;
+}
+
+// API: Export Bills to Excel
+appDashboard.post('/api/bills/export', async (req, res) => {
+  try {
+    const { bills } = req.body;
+    if (!Array.isArray(bills)) return res.status(400).json({ error: 'Invalid bills list.' });
+    const workbook = await generateBillsWorkbook(bills);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=NIK_Bills_Export.xlsx');
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to generate Excel file.' });
   }
 });
 

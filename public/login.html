@@ -5,199 +5,120 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>IT CALL REPORT LOGIN</title>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="style.css" rel="stylesheet">
   <style>
-    :root {
-      --bg-dark: #09090b;
-      --bg-card: rgba(20, 20, 25, 0.6);
-      --primary: #6366f1;
-      --primary-hover: #4f46e5;
-      --border-color: rgba(255, 255, 255, 0.08);
-      --text-primary: #f4f4f5;
-      --text-secondary: #a1a1aa;
-      --status-noanswer: #ef4444;
-      --status-success: #10b981;
-    }
-
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: 'Outfit', sans-serif;
-    }
-
     body {
-      background-color: var(--bg-dark);
-      background-image:
-        radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
-        radial-gradient(at 100% 100%, rgba(239, 68, 68, 0.08) 0px, transparent 50%);
-      min-height: 100vh;
       display: flex;
       justify-content: center;
       align-items: center;
-      padding: 1.5rem;
-      color: var(--text-primary);
       overflow: hidden;
     }
-
     .login-container {
       width: 100%;
       max-width: 420px;
-      background: var(--bg-card);
-      border: 1px solid var(--border-color);
-      border-radius: 16px;
       padding: 2.5rem;
-      backdrop-filter: blur(12px);
-      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
       animation: fadeIn 0.4s ease-out;
     }
-
-    @keyframes fadeIn {
-      from {
-        opacity: 0;
-        transform: translateY(12px);
-      }
-
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-
     .logo-header {
       text-align: center;
       margin-bottom: 2rem;
     }
-
     .logo-icon {
       font-size: 2.2rem;
       margin-bottom: 0.75rem;
       display: inline-block;
     }
-
     h1 {
       font-size: 1.5rem;
-      font-weight: 600;
-      margin-bottom: 0.4rem;
-      background: linear-gradient(135deg, #fff 0%, #a1a1aa 100%);
+      background: linear-gradient(135deg, var(--accent-gold) 0%, var(--accent-rosegold) 50%, var(--accent-orchid) 100%);
       -webkit-background-clip: text;
       background-clip: text;
       -webkit-text-fill-color: transparent;
+      margin-bottom: 0.4rem;
     }
-
     p.subtitle {
       font-size: 0.85rem;
       color: var(--text-secondary);
     }
-
     .form-group {
       margin-bottom: 1.25rem;
       display: flex;
       flex-direction: column;
       gap: 0.4rem;
     }
-
     label {
       font-size: 0.82rem;
       font-weight: 500;
       color: var(--text-secondary);
     }
-
-    input {
-      width: 100%;
-      padding: 0.8rem 1rem;
-      border-radius: 8px;
-      border: 1px solid var(--border-color);
-      background: rgba(255, 255, 255, 0.03);
-      color: var(--text-primary);
-      font-size: 0.95rem;
-      transition: all 0.2s ease;
-      outline: none;
-    }
-
-    input:focus {
-      border-color: var(--primary);
-      background: rgba(255, 255, 255, 0.05);
-      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
-    }
-
     .btn {
       width: 100%;
-      padding: 0.85rem;
-      border-radius: 8px;
-      border: none;
-      background: var(--primary);
-      color: #fff;
-      font-size: 0.95rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s ease;
       margin-top: 0.5rem;
     }
-
-    .btn:hover {
-      background: var(--primary-hover);
-      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
-    }
-
     .btn:disabled {
       opacity: 0.6;
       cursor: not-allowed;
     }
-
     .message-box {
       padding: 0.75rem 1rem;
-      border-radius: 8px;
+      border-radius: var(--radius-md);
       font-size: 0.85rem;
       margin-bottom: 1.25rem;
       display: none;
       line-height: 1.4;
     }
-
     .message-box.error {
       background: rgba(239, 68, 68, 0.08);
       border: 1px solid rgba(239, 68, 68, 0.25);
       color: var(--status-noanswer);
     }
-
     .message-box.success {
       background: rgba(16, 185, 129, 0.08);
       border: 1px solid rgba(16, 185, 129, 0.25);
       color: var(--status-success);
     }
-
     .switch-link {
       text-align: center;
       margin-top: 1.5rem;
       font-size: 0.85rem;
       color: var(--text-secondary);
     }
-
     .switch-link a {
-      color: var(--primary);
+      color: var(--accent-rosegold);
       text-decoration: none;
       font-weight: 500;
       cursor: pointer;
+      position: relative;
     }
-
-    .switch-link a:hover {
-      text-decoration: underline;
+    .switch-link a::after {
+      content: '';
+      position: absolute;
+      width: 100%;
+      transform: scaleX(0);
+      height: 2px;
+      bottom: -2px;
+      left: 0;
+      background-color: var(--accent-rosegold);
+      transform-origin: bottom right;
+      transition: transform 0.25s ease-out;
     }
-
+    .switch-link a:hover::after {
+      transform: scaleX(1);
+      transform-origin: bottom left;
+    }
     .form-section {
       display: none;
     }
-
     .form-section.active {
       display: block;
-      animation: fadeIn 0.3s ease-out;
+      animation: fadeInUp 0.4s forwards cubic-bezier(0.2, 0.8, 0.2, 1);
     }
   </style>
 </head>
 
 <body>
 
-  <div class="login-container">
+  <div class="login-container glass-card">
     <div class="logo-header">
       <div class="logo-icon">🔑</div>
       <h1 id="pageTitle">IT Dashboard Access</h1>
@@ -207,17 +128,17 @@
     <div id="messageBox" class="message-box"></div>
 
     <!-- Login Form -->
-    <div id="loginSection" class="form-section active">
+    <div id="loginSection" class="form-section active fade-in delay-1">
       <form id="loginForm">
         <div class="form-group">
           <label for="loginEmail">Email Address</label>
-          <input type="email" id="loginEmail" placeholder="e.g. user@company.com" required>
+          <input type="email" id="loginEmail" class="glass-input" placeholder="e.g. user@company.com" required>
         </div>
         <div class="form-group">
           <label for="loginPassword">Password</label>
-          <input type="password" id="loginPassword" placeholder="Enter password" required>
+          <input type="password" id="loginPassword" class="glass-input" placeholder="Enter password" required>
         </div>
-        <button type="submit" id="loginBtn" class="btn">Log In</button>
+        <button type="submit" id="loginBtn" class="btn btn-premium ripple">Log In</button>
       </form>
       <div class="switch-link">
         <a onclick="switchSection('forgotSection')">Forgot Password?</a><br><br>
@@ -226,21 +147,21 @@
     </div>
 
     <!-- Register Form -->
-    <div id="registerSection" class="form-section">
+    <div id="registerSection" class="form-section fade-in delay-1">
       <form id="registerForm">
         <div class="form-group">
           <label for="regName">Full Name</label>
-          <input type="text" id="regName" placeholder="e.g. John Doe" required>
+          <input type="text" id="regName" class="glass-input" placeholder="e.g. John Doe" required>
         </div>
         <div class="form-group">
           <label for="regEmail">Email Address</label>
-          <input type="email" id="regEmail" placeholder="e.g. user@company.com" required>
+          <input type="email" id="regEmail" class="glass-input" placeholder="e.g. user@company.com" required>
         </div>
         <div class="form-group">
           <label for="regPassword">Password</label>
-          <input type="password" id="regPassword" placeholder="Create a password" required>
+          <input type="password" id="regPassword" class="glass-input" placeholder="Create a password" required>
         </div>
-        <button type="submit" id="regBtn" class="btn">Register</button>
+        <button type="submit" id="regBtn" class="btn btn-premium ripple">Register</button>
       </form>
       <div class="switch-link">
         Already have an account? <a onclick="switchSection('loginSection')">Log In</a>
@@ -248,17 +169,17 @@
     </div>
 
     <!-- Forgot Password Form -->
-    <div id="forgotSection" class="form-section">
+    <div id="forgotSection" class="form-section fade-in delay-1">
       <form id="forgotForm">
         <div class="form-group">
           <label for="forgotEmail">Email Address</label>
-          <input type="email" id="forgotEmail" placeholder="Registered email" required>
+          <input type="email" id="forgotEmail" class="glass-input" placeholder="Registered email" required>
         </div>
         <div class="form-group">
           <label for="forgotNewPassword">New Password</label>
-          <input type="password" id="forgotNewPassword" placeholder="Enter new password" required>
+          <input type="password" id="forgotNewPassword" class="glass-input" placeholder="Enter new password" required>
         </div>
-        <button type="submit" id="forgotBtn" class="btn">Reset Password</button>
+        <button type="submit" id="forgotBtn" class="btn btn-premium ripple">Reset Password</button>
       </form>
       <div class="switch-link">
         Remembered your password? <a onclick="switchSection('loginSection')">Log In</a>

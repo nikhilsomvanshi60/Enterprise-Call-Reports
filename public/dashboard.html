@@ -38,14 +38,6 @@
 </head>
 
 <body>
-  <div class="ambient-stage" aria-hidden="true">
-    <span class="ambient-ribbon ribbon-a"></span>
-    <span class="ambient-ribbon ribbon-b"></span>
-    <span class="ambient-ribbon ribbon-c"></span>
-    <span class="ambient-line line-a"></span>
-    <span class="ambient-line line-b"></span>
-  </div>
-
   <div class="container">
     <!-- Theme Switcher -->
     <div class="theme-switch-wrapper">
@@ -55,7 +47,7 @@
     </div>
 
     <!-- Dashboard Header -->
-    <div class="dashboard-header">
+    <div class="dashboard-header glass-panel fade-in">
       <div class="dashboard-logo">
         <div class="logo-icon">📊</div>
         <div>
@@ -71,7 +63,7 @@
       </div>
 
       <div class="header-actions">
-        <button id="refreshBtn" class="btn btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.85rem;">
+        <button id="refreshBtn" class="btn btn-secondary ripple" style="padding: 0.5rem 1rem; font-size: 0.85rem;">
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
             stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path>
@@ -81,7 +73,7 @@
           </svg>
           Refresh
         </button>
-        <button id="exportCsvBtn" class="btn btn-primary"
+        <button id="exportCsvBtn" class="btn btn-premium ripple"
           style="padding: 0.5rem 1rem; font-size: 0.85rem; margin-top: 0;">
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
             stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -91,30 +83,30 @@
           </svg>
           Export Excel (Styled)
         </button>
-        <button id="logoutBtn" class="btn btn-secondary" style="padding: 0.5rem 1.2rem; font-size: 0.85rem; background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444;">
+        <button id="logoutBtn" class="btn btn-secondary ripple" style="padding: 0.5rem 1.2rem; font-size: 0.85rem; background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444;">
           🚪 Log Out
         </button>
       </div>
     </div>
 
     <!-- KPI Summary Grid -->
-    <div class="stats-grid">
-      <div class="stat-card">
+    <div class="stats-grid fade-in delay-1">
+      <div class="stat-card glass-card">
         <span class="stat-label">Total Reports</span>
         <span id="statTotalCalls" class="stat-value">0</span>
         <span class="stat-desc">Total issues logged to database</span>
       </div>
-      <div class="stat-card">
+      <div class="stat-card glass-card">
         <span class="stat-label">Resolved Rate</span>
         <span id="statAnswerRate" class="stat-value">0%</span>
         <span class="stat-desc">Percentage of resolved issues</span>
       </div>
-      <div class="stat-card">
+      <div class="stat-card glass-card">
         <span class="stat-label">Resolved Issues</span>
         <span id="statTotalDuration" class="stat-value">0</span>
         <span class="stat-desc">Issues successfully resolved</span>
       </div>
-      <div class="stat-card">
+      <div class="stat-card glass-card">
         <span class="stat-label">Pending / In Progress</span>
         <span id="statAvgDuration" class="stat-value">0</span>
         <span class="stat-desc">Active issues needing action</span>
@@ -122,8 +114,8 @@
     </div>
 
     <!-- Analytics Charts Section -->
-    <div class="charts-section">
-      <div class="chart-card">
+    <div class="charts-section fade-in delay-2">
+      <div class="chart-card glass-card">
         <div class="chart-title-row">
           <h3>Issues by Department</h3>
           <span id="deptChartMeta" class="chart-meta">Ranked by volume</span>
@@ -132,14 +124,14 @@
           <canvas id="deptChart"></canvas>
         </div>
       </div>
-      <div class="chart-card">
+      <div class="chart-card glass-card">
         <h3>Issue Status Distribution</h3>
         <div class="chart-container">
           <canvas id="statusChart"></canvas>
         </div>
       </div>
       <!-- Recent Activity Timeline -->
-      <div class="chart-card" style="max-height: 300px; display: flex; flex-direction: column;">
+      <div class="chart-card glass-card fade-in delay-3" style="max-height: 300px; display: flex; flex-direction: column;">
         <h3>Recent Activity Feed</h3>
         <div id="activityTimeline" class="timeline-list" style="flex: 1; overflow-y: auto; padding-right: 0.25rem;">
           <p style="color: var(--text-muted); font-size: 0.85rem; text-align: center; margin-top: 2rem;">No recent
@@ -160,12 +152,15 @@
       <button id="tabUsersBtn" class="theme-toggle-btn"
         style="border-radius: 8px; padding: 0.6rem 1.25rem; font-weight: 600; cursor: pointer; border: 1px solid transparent; background: transparent; color: var(--text-secondary);">👥
         Registered Users</button>
+      <button id="tabBillsBtn" class="theme-toggle-btn"
+        style="border-radius: 8px; padding: 0.6rem 1.25rem; font-weight: 600; cursor: pointer; border: 1px solid transparent; background: transparent; color: var(--text-secondary);">🧾
+        Bills & Invoices</button>
     </div>
 
     <!-- TAB 1 CONTENT: REPORTS LOG -->
-    <div id="tabReportsContent">
+    <div id="tabReportsContent" class="fade-in delay-2">
       <!-- Interactive Filters Panel -->
-      <div class="filters-panel">
+      <div class="filters-panel glass-panel" style="padding: 1rem; border-radius: var(--radius-md); margin-bottom: 1.5rem; display: flex; gap: 1rem;">
         <!-- Search Input -->
         <div class="filter-group" style="flex-grow: 2;">
           <label for="searchFilter" style="display: none;">Search</label>
@@ -220,10 +215,10 @@
     </div> <!-- Close tabReportsContent -->
 
     <!-- TAB 2 CONTENT: HOLIDAYS & LEAVES -->
-    <div id="tabHolidaysContent" style="display: none;">
+    <div id="tabHolidaysContent" class="fade-in delay-2" style="display: none;">
       <div style="display: flex; gap: 1.5rem; flex-wrap: wrap; align-items: flex-start;">
         <!-- Left Side: Add Holiday/Leave Form -->
-        <div class="chart-card" style="flex: 1; min-width: 300px; padding: 1.5rem;">
+        <div class="chart-card glass-card" style="flex: 1; min-width: 300px; padding: 1.5rem;">
           <h3 style="margin-top: 0;">Declare Holiday or Leave</h3>
           <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.25rem; line-height: 1.5;">Add a
             custom public holiday, company festival, or personal user leave. These will show inline in Excel exports
@@ -258,13 +253,13 @@
                 style="padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border-color); background: rgba(255, 255, 255, 0.05); color: var(--text-primary); font-family: 'Outfit'; width: 100%;">
             </div>
 
-            <button type="submit" class="btn btn-primary"
+            <button type="submit" class="btn btn-premium ripple"
               style="margin: 0.5rem 0 0 0; padding: 0.75rem; width: 100%;">Add Holiday / Leave</button>
           </form>
         </div>
 
         <!-- Right Side: Current Holidays & Leaves List -->
-        <div class="chart-card"
+        <div class="chart-card glass-card"
           style="flex: 2; min-width: 400px; padding: 1.5rem; display: flex; flex-direction: column;">
           <h3 style="margin-top: 0;">Declared Holidays & Leaves</h3>
 
@@ -291,8 +286,8 @@
     </div>
 
     <!-- TAB 3 CONTENT: REGISTERED USERS -->
-    <div id="tabUsersContent" style="display: none;">
-      <div class="chart-card" style="padding: 1.5rem; margin-bottom: 1rem;">
+    <div id="tabUsersContent" class="fade-in delay-2" style="display: none;">
+      <div class="chart-card glass-card" style="padding: 1.5rem; margin-bottom: 1rem;">
         <div class="chart-title-row" style="margin-bottom: 1rem;">
           <h3 style="margin: 0;">Manage Firebase Users</h3>
           <span class="chart-meta">All registered accounts</span>
@@ -317,9 +312,128 @@
       </div>
     </div>
 
+    <!-- TAB 4 CONTENT: BILLS & INVOICES -->
+    <div id="tabBillsContent" class="fade-in delay-2" style="display: none;">
+      <div class="filters-panel glass-panel" style="padding: 1rem; border-radius: var(--radius-md); margin-bottom: 1.5rem; display: flex; gap: 1rem;">
+        <!-- Filters for Bills -->
+        <div class="filter-group" style="flex-grow: 2;">
+          <label for="searchBillFilter" style="display: none;">Search</label>
+          <input type="text" id="searchBillFilter" placeholder="Search Supplier, Challan No, PO Number, Purpose...">
+        </div>
+        <div class="filter-group">
+          <label for="billDateFilter">Timeframe</label>
+          <select id="billDateFilter">
+            <option value="ALL">All Time</option>
+            <option value="TODAY">Today</option>
+            <option value="THIS_MONTH">This Month</option>
+            <option value="LAST_MONTH">Last Month</option>
+          </select>
+        </div>
+        <button id="addBillBtn" class="btn btn-premium ripple" style="margin-top: auto; padding: 0.75rem 1.5rem;">+ Add New Bill</button>
+        <button id="exportBillsBtn" class="btn btn-secondary ripple" style="margin-top: auto; padding: 0.75rem 1.5rem; border: 1px solid var(--primary); color: var(--primary);">📥 Export Excel</button>
+      </div>
+
+      <!-- Add Bill Form (Hidden by default) -->
+      <div id="addBillFormContainer" class="chart-card glass-card" style="display: none; padding: 1.5rem; margin-bottom: 1.5rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+          <h3 style="margin: 0;">Add New Bill / Invoice</h3>
+          <button id="closeAddBillBtn" class="close-modal-btn" style="position: static;">&times;</button>
+        </div>
+        <form id="billForm" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+          <div class="form-group">
+            <label>Bill Date *</label>
+            <input type="date" id="billDate" required>
+          </div>
+          <div class="form-group">
+            <label>Ref.Code</label>
+            <input type="text" id="billRefCode">
+          </div>
+          <div class="form-group">
+            <label>Bill / Challan No. *</label>
+            <input type="text" id="billChallanNo" required>
+          </div>
+          <div class="form-group">
+            <label>Supplier *</label>
+            <input type="text" id="billSupplier" required>
+          </div>
+          <div class="form-group" style="grid-column: 1 / -1;">
+            <label>Items (Description, Qty, Amount) *</label>
+            <div id="billItemsContainer">
+              <div class="bill-item-row" style="display: flex; gap: 10px; margin-bottom: 10px; align-items: flex-start;">
+                <div style="flex: 3;">
+                  <textarea class="billItemDesc" placeholder="Item Description" rows="2" required style="width: 100%; resize: vertical; border: none; background: rgba(255,255,255,0.05); color: var(--text-primary); padding: 0.5rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color);"></textarea>
+                </div>
+                <div style="flex: 1;">
+                  <input type="number" class="billQty" placeholder="Qty" step="0.01" required>
+                </div>
+                <div style="flex: 1;">
+                  <input type="number" class="billAmount" placeholder="Amount" step="0.01" required>
+                </div>
+                <button type="button" class="btn-remove-item" style="background: none; border: none; color: var(--status-noanswer); font-size: 1.2rem; cursor: pointer; padding: 5px;" title="Remove Item">✖</button>
+              </div>
+            </div>
+            <button type="button" id="btnAddBillItem" class="btn btn-secondary" style="margin-top: 5px; font-size: 0.9rem; padding: 5px 10px; background: var(--bg-hover); color: var(--text-color);">+ Add Another Item</button>
+          </div>
+          <div class="form-group">
+            <label>PO Number</label>
+            <input type="text" id="billPONumber">
+          </div>
+          <div class="form-group">
+            <label>Purpose</label>
+            <input type="text" id="billPurpose">
+          </div>
+          <div class="form-group">
+            <label>Remarks</label>
+            <input type="text" id="billRemarks">
+          </div>
+          <div class="form-group">
+            <label>Hand Over to / Date</label>
+            <input type="text" id="billHandOver" placeholder="Name or Date">
+          </div>
+          <div style="grid-column: 1 / -1; display: flex; justify-content: flex-end; margin-top: 0.5rem;">
+            <button type="submit" class="btn btn-premium ripple" style="padding: 0.75rem 2rem;">Save Bill</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Excel-like Table for Bills -->
+      <div class="table-container excel-table-container">
+        <table id="billsTable" class="excel-table">
+          <thead>
+            <tr>
+              <th style="min-width: 110px;">Bill Date</th>
+              <th style="min-width: 140px;">Bill / Challan No.</th>
+              <th style="min-width: 150px;">Supplier</th>
+              <th style="min-width: 200px;">Item Description</th>
+              <th style="min-width: 80px;">Qty</th>
+              <th style="min-width: 120px;">Amount</th>
+              <th style="min-width: 120px;">PO Number</th>
+              <th style="min-width: 150px;">Purpose</th>
+              <th style="min-width: 150px;">Remarks</th>
+              <th style="min-width: 160px;">Hand Over to / Date</th>
+              <th style="min-width: 80px; text-align: center; position: sticky; right: 0; background: var(--bg-card); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); z-index: 12; border-left: 2px solid var(--border-color); box-shadow: -4px 0 10px rgba(0,0,0,0.1);">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="billsTableBody">
+            <tr>
+              <td colspan="11" class="no-data-msg">Loading bills data...</td>
+            </tr>
+          </tbody>
+          <tfoot id="billsTableFoot" style="font-weight: bold; background-color: rgba(99, 102, 241, 0.05);">
+            <tr>
+              <td colspan="4" style="text-align: right;">Total:</td>
+              <td id="totalBillQty">0</td>
+              <td id="totalBillAmount">0.00</td>
+              <td colspan="5"></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+
     <!-- Edit Report Modal -->
     <div id="editModal" class="modal-overlay">
-      <div class="modal-card">
+      <div class="modal-card glass-card fade-in delay-1">
         <div class="modal-header">
           <h3>Edit Report Details</h3>
           <button id="closeModalBtn" class="close-modal-btn">&times;</button>
@@ -360,25 +474,28 @@
             <input type="date" id="editResolveDate">
           </div>
 
-          <div class="form-group">
+          <div class="form-group textarea-wrapper">
             <label for="editProblems">Problems *</label>
             <textarea id="editProblems" rows="3" required></textarea>
+            <button type="button" id="aiPolishEditProblemsBtn" class="ai-polish-btn" title="AI Fix & Translate (Auto-English)">✨</button>
           </div>
 
-          <div class="form-group">
+          <div class="form-group textarea-wrapper">
             <label for="editAction">Action Taken / Planned</label>
             <textarea id="editAction" rows="2"></textarea>
+            <button type="button" id="aiPolishEditActionBtn" class="ai-polish-btn" title="AI Fix & Translate (Auto-English)">✨</button>
           </div>
 
-          <div class="form-group">
+          <div class="form-group textarea-wrapper">
             <label for="editRemarks">Remarks</label>
             <textarea id="editRemarks" rows="2"></textarea>
+            <button type="button" id="aiPolishEditRemarksBtn" class="ai-polish-btn" title="AI Fix & Translate (Auto-English)">✨</button>
           </div>
 
           <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
-            <button type="button" id="cancelEditBtn" class="btn btn-secondary"
+            <button type="button" id="cancelEditBtn" class="btn btn-secondary ripple"
               style="flex: 1; padding: 0.75rem;">Cancel</button>
-            <button type="submit" class="btn btn-primary" style="flex: 2; padding: 0.75rem; margin-top: 0;">Save
+            <button type="submit" class="btn btn-premium ripple" style="flex: 2; padding: 0.75rem; margin-top: 0;">Save
               Changes</button>
           </div>
         </form>
@@ -387,7 +504,7 @@
 
     <!-- Reset Password Modal -->
     <div id="resetPasswordModal" class="modal-overlay">
-      <div class="modal-card" style="max-width: 400px;">
+      <div class="modal-card glass-card fade-in delay-1" style="max-width: 400px;">
         <div class="modal-header">
           <h3>Reset User Password</h3>
           <button id="closeResetPasswordModalBtn" class="close-modal-btn">&times;</button>
@@ -401,8 +518,8 @@
           </div>
           <div id="resetPasswordError" style="display: none; color: var(--status-noanswer); font-size: 0.85rem; margin-bottom: 1rem;"></div>
           <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
-            <button type="button" id="cancelResetPasswordBtn" class="btn btn-secondary" style="flex: 1; padding: 0.75rem;">Cancel</button>
-            <button type="submit" class="btn btn-primary" style="flex: 2; padding: 0.75rem; margin-top: 0;">Reset Password</button>
+            <button type="button" id="cancelResetPasswordBtn" class="btn btn-secondary ripple" style="flex: 1; padding: 0.75rem;">Cancel</button>
+            <button type="submit" class="btn btn-premium ripple" style="flex: 2; padding: 0.75rem; margin-top: 0;">Reset Password</button>
           </div>
         </form>
       </div>

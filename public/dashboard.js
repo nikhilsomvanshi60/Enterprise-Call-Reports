@@ -51,6 +51,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const editActionInput = document.getElementById('editAction');
   const editRemarksInput = document.getElementById('editRemarks');
 
+  const aiPolishEditProblemsBtn = document.getElementById('aiPolishEditProblemsBtn');
+  const aiPolishEditActionBtn = document.getElementById('aiPolishEditActionBtn');
+  const aiPolishEditRemarksBtn = document.getElementById('aiPolishEditRemarksBtn');
+
   const closeModalBtn = document.getElementById('closeModalBtn');
   const cancelEditBtn = document.getElementById('cancelEditBtn');
 
@@ -59,6 +63,17 @@ document.addEventListener('DOMContentLoaded', () => {
   const tabHolidaysBtn = document.getElementById('tabHolidaysBtn');
   const tabReportsContent = document.getElementById('tabReportsContent');
   const tabHolidaysContent = document.getElementById('tabHolidaysContent');
+  const tabBillsBtn = document.getElementById('tabBillsBtn');
+  const tabBillsContent = document.getElementById('tabBillsContent');
+
+  // Bills Elements
+  const billsTableBody = document.getElementById('billsTableBody');
+  const addBillBtn = document.getElementById('addBillBtn');
+  const exportBillsBtn = document.getElementById('exportBillsBtn');
+  const addBillFormContainer = document.getElementById('addBillFormContainer');
+  const closeAddBillBtn = document.getElementById('closeAddBillBtn');
+  const billForm = document.getElementById('billForm');
+  let billsData = [];
 
   // Holiday Elements
   const holidayForm = document.getElementById('holidayForm');
@@ -744,6 +759,53 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // 9. AI Polish Feature
+  async function improveTextViaAI(text, buttonEl) {
+    if (!text || text.trim() === '') return text;
+    
+    if (buttonEl) buttonEl.classList.add('loading');
+    
+    try {
+      const res = await fetch('/api/ai/improve-text', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': getADSessionToken(),
+          'Bypass-Tunnel-Reminder': 'true'
+        },
+        body: JSON.stringify({ text })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        return data.correctedText;
+      } else if (data.error && data.error.includes('GEMINI_API_KEY')) {
+        alert('Server is missing Gemini API Key. Please provide it to the admin.');
+      }
+    } catch (e) {
+      console.error('AI Polish error:', e);
+    } finally {
+      if (buttonEl) buttonEl.classList.remove('loading');
+    }
+    return text;
+  }
+
+  function setupAIPolishBtn(btn, textarea) {
+    if (!btn || !textarea) return;
+    btn.addEventListener('click', async () => {
+      const currentText = textarea.value;
+      if (!currentText.trim()) return;
+      const improved = await improveTextViaAI(currentText, btn);
+      if (improved && improved !== currentText) {
+        textarea.value = improved;
+        textarea.dispatchEvent(new Event('input'));
+      }
+    });
+  }
+
+  setupAIPolishBtn(aiPolishEditProblemsBtn, editProblemsInput);
+  setupAIPolishBtn(aiPolishEditActionBtn, editActionInput);
+  setupAIPolishBtn(aiPolishEditRemarksBtn, editRemarksInput);
+
   editStatusSelect.addEventListener('change', handleEditStatusChange);
   closeModalBtn.addEventListener('click', closeEditModal);
   cancelEditBtn.addEventListener('click', closeEditModal);
@@ -989,15 +1051,23 @@ document.addEventListener('DOMContentLoaded', () => {
     setActiveTab('users');
   });
 
+  if (tabBillsBtn) {
+    tabBillsBtn.addEventListener('click', () => {
+      setActiveTab('bills');
+    });
+  }
+
   function setActiveTab(tab) {
-    [tabReportsBtn, tabHolidaysBtn, tabUsersBtn].forEach(btn => {
+    [tabReportsBtn, tabHolidaysBtn, tabUsersBtn, tabBillsBtn].forEach(btn => {
+      if (!btn) return;
       btn.classList.remove('active-tab');
       btn.style.border = '1px solid transparent';
       btn.style.background = 'transparent';
       btn.style.color = 'var(--text-secondary)';
     });
     
-    [tabReportsContent, tabHolidaysContent, tabUsersContent].forEach(content => {
+    [tabReportsContent, tabHolidaysContent, tabUsersContent, tabBillsContent].forEach(content => {
+      if (!content) return;
       content.style.display = 'none';
     });
 
@@ -1015,14 +1085,21 @@ document.addEventListener('DOMContentLoaded', () => {
       activeBtn = tabUsersBtn;
       activeContent = tabUsersContent;
       fetchUsers();
+    } else if (tab === 'bills') {
+      activeBtn = tabBillsBtn;
+      activeContent = tabBillsContent;
+      fetchBills();
     }
     
-    activeBtn.classList.add('active-tab');
-    activeBtn.style.border = '1px solid var(--primary)';
-    activeBtn.style.background = 'rgba(99, 102, 241, 0.1)';
-    activeBtn.style.color = 'var(--primary)';
-    
-    activeContent.style.display = 'block';
+    if (activeBtn) {
+      activeBtn.classList.add('active-tab');
+      activeBtn.style.border = '1px solid var(--primary)';
+      activeBtn.style.background = 'rgba(99, 102, 241, 0.1)';
+      activeBtn.style.color = 'var(--primary)';
+    }
+    if (activeContent) {
+      activeContent.style.display = 'block';
+    }
   }
 
   // Holiday API Management Functions
@@ -1139,7 +1216,7 @@ document.addEventListener('DOMContentLoaded', () => {
         headers: {
           'Content-Type': 'application/json',
           'Bypass-Tunnel-Reminder': 'true',
-          'Authorization': getAuthToken()
+          'Authorization': getADSessionToken()
         },
         body: JSON.stringify(payload)
       });
@@ -1159,7 +1236,278 @@ document.addEventListener('DOMContentLoaded', () => {
       alert('Failed to add holiday due to a network error.');
     }
   });
+  // Bills API Management Functions
+  async function fetchBills() {
+    const token = getADSessionToken();
+    if (!token) return;
 
+    try {
+      const response = await fetch('/api/bills', {
+        headers: {
+          'Bypass-Tunnel-Reminder': 'true',
+          'Authorization': token
+        }
+      });
+      if (response.ok) {
+        billsData = await response.json();
+        renderBillsTable();
+      } else if (response.status === 404) {
+        // If API doesn't exist yet
+        billsData = [];
+        renderBillsTable();
+      }
+    } catch (err) {
+      console.error('Error fetching bills:', err);
+      if (billsTableBody) {
+        billsTableBody.innerHTML = '<tr><td colspan="11" class="no-data-msg">Error loading bills. Backend API may not be ready.</td></tr>';
+      }
+    }
+  }
+
+  function renderBillsTable() {
+    if (!billsTableBody) return;
+    
+    if (!billsData || billsData.length === 0) {
+      billsTableBody.innerHTML = '<tr><td colspan="12" class="no-data-msg">No bills or invoices found.</td></tr>';
+      document.getElementById('totalBillQty').textContent = '0';
+      document.getElementById('totalBillAmount').textContent = '0.00';
+      return;
+    }
+
+    const sorted = [...billsData].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    billsTableBody.innerHTML = '';
+    let tQty = 0;
+    let tAmt = 0;
+
+    sorted.forEach(b => {
+      const qty = parseFloat(b.qty) || 0;
+      const amt = parseFloat(b.amount) || 0;
+      tQty += qty;
+      tAmt += amt;
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${escapeHTML(b.date)}</td>
+        <td>${escapeHTML(b.refCode || '-')}</td>
+        <td>${escapeHTML(b.challanNo)}</td>
+        <td>${escapeHTML(b.supplier)}</td>
+        <td>${escapeHTML(b.itemDesc)}</td>
+        <td>${qty}</td>
+        <td>${amt.toFixed(2)}</td>
+        <td>${escapeHTML(b.poNumber || '-')}</td>
+        <td>${escapeHTML(b.purpose || '-')}</td>
+        <td>${escapeHTML(b.remarks || '-')}</td>
+        <td>${escapeHTML(b.handOver || '-')}</td>
+        <td style="position: sticky; right: 0; background: var(--bg-card); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); z-index: 1; border-left: 2px solid var(--border-color); text-align: center; box-shadow: -4px 0 10px rgba(0,0,0,0.1);">
+          <button class="btn-delete-bill" data-id="${b.id}" style="background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--status-noanswer);" title="Delete Bill">🗑️</button>
+        </td>
+      `;
+      billsTableBody.appendChild(tr);
+    });
+
+    document.getElementById('totalBillQty').textContent = tQty;
+    document.getElementById('totalBillAmount').textContent = tAmt.toFixed(2);
+
+    billsTableBody.querySelectorAll('.btn-delete-bill').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const id = btn.getAttribute('data-id');
+        if (confirm('Are you sure you want to delete this bill?')) {
+          await deleteBill(id);
+        }
+      });
+    });
+  }
+
+  async function deleteBill(id) {
+    const token = getADSessionToken();
+    if (!token) return;
+
+    try {
+      const response = await fetch(`/api/bills/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Bypass-Tunnel-Reminder': 'true',
+          'Authorization': token
+        }
+      });
+      if (response.ok) {
+        fetchBills();
+      } else {
+        const err = await response.json();
+        alert('Delete failed: ' + (err.error || 'Server error'));
+      }
+    } catch (err) {
+      console.error('Delete error:', err);
+      alert('Failed to delete bill due to a network error.');
+    }
+  }
+
+  if (addBillBtn) {
+    addBillBtn.addEventListener('click', () => {
+      addBillFormContainer.style.display = 'block';
+    });
+  }
+
+  if (closeAddBillBtn) {
+    closeAddBillBtn.addEventListener('click', () => {
+      addBillFormContainer.style.display = 'none';
+      billForm.reset();
+      resetBillItems();
+    });
+  }
+
+  const billItemsContainer = document.getElementById('billItemsContainer');
+  const btnAddBillItem = document.getElementById('btnAddBillItem');
+
+  if (btnAddBillItem && billItemsContainer) {
+    btnAddBillItem.addEventListener('click', () => {
+      const row = document.createElement('div');
+      row.className = 'bill-item-row';
+      row.style = 'display: flex; gap: 10px; margin-bottom: 10px; align-items: flex-start;';
+      row.innerHTML = `
+        <div style="flex: 3;">
+          <textarea class="billItemDesc" placeholder="Item Description" rows="2" required style="width: 100%; resize: vertical; border: none; background: rgba(255,255,255,0.05); color: var(--text-primary); padding: 0.5rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color);"></textarea>
+        </div>
+        <div style="flex: 1;">
+          <input type="number" class="billQty" placeholder="Qty" step="0.01" required>
+        </div>
+        <div style="flex: 1;">
+          <input type="number" class="billAmount" placeholder="Amount" step="0.01" required>
+        </div>
+        <button type="button" class="btn-remove-item" style="background: none; border: none; color: var(--status-noanswer); font-size: 1.2rem; cursor: pointer; padding: 5px;" title="Remove Item">✖</button>
+      `;
+      billItemsContainer.appendChild(row);
+    });
+
+    billItemsContainer.addEventListener('click', (e) => {
+      if (e.target.classList.contains('btn-remove-item')) {
+        const rows = billItemsContainer.querySelectorAll('.bill-item-row');
+        if (rows.length > 1) {
+          e.target.closest('.bill-item-row').remove();
+        } else {
+          alert('At least one item is required.');
+        }
+      }
+    });
+  }
+
+  function resetBillItems() {
+    if (billItemsContainer) {
+      billItemsContainer.innerHTML = `
+        <div class="bill-item-row" style="display: flex; gap: 10px; margin-bottom: 10px; align-items: flex-start;">
+          <div style="flex: 3;">
+            <textarea class="billItemDesc" placeholder="Item Description" rows="2" required style="width: 100%; resize: vertical; border: none; background: rgba(255,255,255,0.05); color: var(--text-primary); padding: 0.5rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color);"></textarea>
+          </div>
+          <div style="flex: 1;">
+            <input type="number" class="billQty" placeholder="Qty" step="0.01" required>
+          </div>
+          <div style="flex: 1;">
+            <input type="number" class="billAmount" placeholder="Amount" step="0.01" required>
+          </div>
+          <button type="button" class="btn-remove-item" style="background: none; border: none; color: var(--status-noanswer); font-size: 1.2rem; cursor: pointer; padding: 5px;" title="Remove Item">✖</button>
+        </div>
+      `;
+    }
+  }
+
+  if (billForm) {
+    billForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const items = [];
+      const itemRows = document.querySelectorAll('.bill-item-row');
+      itemRows.forEach(row => {
+        items.push({
+          itemDesc: row.querySelector('.billItemDesc').value,
+          qty: row.querySelector('.billQty').value,
+          amount: row.querySelector('.billAmount').value
+        });
+      });
+
+      const payload = {
+        date: document.getElementById('billDate').value,
+        refCode: document.getElementById('billRefCode').value,
+        challanNo: document.getElementById('billChallanNo').value,
+        supplier: document.getElementById('billSupplier').value,
+        poNumber: document.getElementById('billPONumber').value,
+        purpose: document.getElementById('billPurpose').value,
+        remarks: document.getElementById('billRemarks').value,
+        handOver: document.getElementById('billHandOver').value,
+        items: items
+      };
+
+      try {
+        const response = await fetch('/api/bills', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Bypass-Tunnel-Reminder': 'true',
+            'Authorization': getADSessionToken()
+          },
+          body: JSON.stringify(payload)
+        });
+
+        if (response.ok) {
+          billForm.reset();
+          resetBillItems();
+          addBillFormContainer.style.display = 'none';
+          fetchBills();
+        } else {
+          const result = await response.json();
+          alert('Failed: ' + (result.error || 'Server error'));
+        }
+      } catch (err) {
+        console.error('Add bill error:', err);
+        alert('Failed to add bill due to a network error. Ensure backend supports /api/bills.');
+      }
+    });
+  }
+
+  // Export Bills as Excel
+  if (exportBillsBtn) {
+    exportBillsBtn.addEventListener('click', async () => {
+      if (!billsData || billsData.length === 0) {
+        alert('No bills to export.');
+        return;
+      }
+      exportBillsBtn.disabled = true;
+      exportBillsBtn.innerHTML = 'Generating...';
+
+      try {
+        const response = await fetch('/api/bills/export', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Bypass-Tunnel-Reminder': 'true',
+            'Authorization': getADSessionToken()
+          },
+          body: JSON.stringify({ bills: billsData }) // In future could be filteredBills
+        });
+
+        if (response.ok) {
+          const blob = await response.blob();
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.setAttribute('href', url);
+          link.setAttribute('download', `NIK_Bills_Export_${new Date().toISOString().slice(0, 10)}.xlsx`);
+          link.style.visibility = 'hidden';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        } else {
+          const err = await response.json();
+          alert('Export failed: ' + (err.error || 'Server error'));
+        }
+      } catch (err) {
+        console.error('Export error:', err);
+        alert('Network error. Failed to download Bills Excel.');
+      } finally {
+        exportBillsBtn.disabled = false;
+        exportBillsBtn.innerHTML = '📥 Export Excel';
+      }
+    });
+  }
 
 
   refreshBtn.addEventListener('click', () => {
