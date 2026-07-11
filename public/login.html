@@ -1,197 +1,148 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>IT CALL REPORT LOGIN</title>
+  <meta name="theme-color" content="#07111f">
+  <meta name="description" content="Secure sign-in for Enterprise Call Reports">
+  <title>Enterprise Call Reports · Secure Access</title>
   <link href="style.css" rel="stylesheet">
-  <style>
-    body {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      overflow: hidden;
-    }
-    .login-container {
-      width: 100%;
-      max-width: 420px;
-      padding: 2.5rem;
-      animation: fadeIn 0.4s ease-out;
-    }
-    .logo-header {
-      text-align: center;
-      margin-bottom: 2rem;
-    }
-    .logo-icon {
-      font-size: 2.2rem;
-      margin-bottom: 0.75rem;
-      display: inline-block;
-    }
-    h1 {
-      font-size: 1.5rem;
-      background: linear-gradient(135deg, var(--accent-gold) 0%, var(--accent-rosegold) 50%, var(--accent-orchid) 100%);
-      -webkit-background-clip: text;
-      background-clip: text;
-      -webkit-text-fill-color: transparent;
-      margin-bottom: 0.4rem;
-    }
-    p.subtitle {
-      font-size: 0.85rem;
-      color: var(--text-secondary);
-    }
-    .form-group {
-      margin-bottom: 1.25rem;
-      display: flex;
-      flex-direction: column;
-      gap: 0.4rem;
-    }
-    label {
-      font-size: 0.82rem;
-      font-weight: 500;
-      color: var(--text-secondary);
-    }
-    .btn {
-      width: 100%;
-      margin-top: 0.5rem;
-    }
-    .btn:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
-    .message-box {
-      padding: 0.75rem 1rem;
-      border-radius: var(--radius-md);
-      font-size: 0.85rem;
-      margin-bottom: 1.25rem;
-      display: none;
-      line-height: 1.4;
-    }
-    .message-box.error {
-      background: rgba(239, 68, 68, 0.08);
-      border: 1px solid rgba(239, 68, 68, 0.25);
-      color: var(--status-noanswer);
-    }
-    .message-box.success {
-      background: rgba(16, 185, 129, 0.08);
-      border: 1px solid rgba(16, 185, 129, 0.25);
-      color: var(--status-success);
-    }
-    .switch-link {
-      text-align: center;
-      margin-top: 1.5rem;
-      font-size: 0.85rem;
-      color: var(--text-secondary);
-    }
-    .switch-link a {
-      color: var(--accent-rosegold);
-      text-decoration: none;
-      font-weight: 500;
-      cursor: pointer;
-      position: relative;
-    }
-    .switch-link a::after {
-      content: '';
-      position: absolute;
-      width: 100%;
-      transform: scaleX(0);
-      height: 2px;
-      bottom: -2px;
-      left: 0;
-      background-color: var(--accent-rosegold);
-      transform-origin: bottom right;
-      transition: transform 0.25s ease-out;
-    }
-    .switch-link a:hover::after {
-      transform: scaleX(1);
-      transform-origin: bottom left;
-    }
-    .form-section {
-      display: none;
-    }
-    .form-section.active {
-      display: block;
-      animation: fadeInUp 0.4s forwards cubic-bezier(0.2, 0.8, 0.2, 1);
-    }
-  </style>
 </head>
+<body class="auth-page">
+  <main class="auth-shell">
+    <section class="auth-intro" aria-labelledby="authProductTitle">
+      <a class="brand-lockup auth-brand" href="/" aria-label="Enterprise Call Reports">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24">
+            <path d="M7 3.75h8.5a2 2 0 0 1 2 2V8h.75A1.75 1.75 0 0 1 20 9.75v8.5A1.75 1.75 0 0 1 18.25 20h-12.5A1.75 1.75 0 0 1 4 18.25v-8.5A1.75 1.75 0 0 1 5.75 8H6V4.75a1 1 0 0 1 1-1Z"/>
+            <path d="M8.5 3.75v4.5h7v-4.5M8 12h8M8 15.5h5"/>
+          </svg>
+        </span>
+        <span>
+          <strong>Enterprise Call Reports</strong>
+          <small>Operations workspace</small>
+        </span>
+      </a>
 
-<body>
-
-  <div class="login-container glass-card">
-    <div class="logo-header">
-      <div class="logo-icon">🔑</div>
-      <h1 id="pageTitle">IT Dashboard Access</h1>
-      <p class="subtitle" id="pageSubtitle">Secure Login</p>
-    </div>
-
-    <div id="messageBox" class="message-box"></div>
-
-    <!-- Login Form -->
-    <div id="loginSection" class="form-section active fade-in delay-1">
-      <form id="loginForm">
-        <div class="form-group">
-          <label for="loginEmail">Email Address</label>
-          <input type="email" id="loginEmail" class="glass-input" placeholder="e.g. user@company.com" required>
-        </div>
-        <div class="form-group">
-          <label for="loginPassword">Password</label>
-          <input type="password" id="loginPassword" class="glass-input" placeholder="Enter password" required>
-        </div>
-        <button type="submit" id="loginBtn" class="btn btn-premium ripple">Log In</button>
-      </form>
-      <div class="switch-link">
-        <a onclick="switchSection('forgotSection')">Forgot Password?</a><br><br>
-        Don't have an account? <a onclick="switchSection('registerSection')">Register</a>
+      <div class="auth-copy">
+        <p class="hero-context">Secure IT operations</p>
+        <h1 id="authProductTitle">One source of truth for every support call.</h1>
+        <p>Submit issues from mobile, manage the full queue on PC, and export structured Excel reports without moving operational data to a third-party database.</p>
       </div>
-    </div>
 
-    <!-- Register Form -->
-    <div id="registerSection" class="form-section fade-in delay-1">
-      <form id="registerForm">
-        <div class="form-group">
-          <label for="regName">Full Name</label>
-          <input type="text" id="regName" class="glass-input" placeholder="e.g. John Doe" required>
+      <div class="auth-feature-list">
+        <div>
+          <span class="feature-icon">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 5 6v5c0 4.6 2.9 8.3 7 10 4.1-1.7 7-5.4 7-10V6l-7-3Zm-3 9 2 2 4-5"/></svg>
+          </span>
+          <span><strong>Protected access</strong><small>Authenticated sessions with restricted administration.</small></span>
         </div>
-        <div class="form-group">
-          <label for="regEmail">Email Address</label>
-          <input type="email" id="regEmail" class="glass-input" placeholder="e.g. user@company.com" required>
+        <div>
+          <span class="feature-icon">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v12H4zM8 10h2M8 14h4M15 10h1M15 14h1"/></svg>
+          </span>
+          <span><strong>Local-first records</strong><small>JSON, CSV, Excel and daily backup workflows.</small></span>
         </div>
-        <div class="form-group">
-          <label for="regPassword">Password</label>
-          <input type="password" id="regPassword" class="glass-input" placeholder="Create a password" required>
+        <div>
+          <span class="feature-icon">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19V9M12 19V5M19 19v-7"/></svg>
+          </span>
+          <span><strong>Operational analytics</strong><small>Department trends, statuses and recent activity.</small></span>
         </div>
-        <button type="submit" id="regBtn" class="btn btn-premium ripple">Register</button>
-      </form>
-      <div class="switch-link">
-        Already have an account? <a onclick="switchSection('loginSection')">Log In</a>
       </div>
-    </div>
 
-    <!-- Forgot Password Form -->
-    <div id="forgotSection" class="form-section fade-in delay-1">
-      <form id="forgotForm">
-        <div class="form-group">
-          <label for="forgotEmail">Email Address</label>
-          <input type="email" id="forgotEmail" class="glass-input" placeholder="Registered email" required>
-        </div>
-        <div class="form-group">
-          <label for="forgotNewPassword">New Password</label>
-          <input type="password" id="forgotNewPassword" class="glass-input" placeholder="Enter new password" required>
-        </div>
-        <button type="submit" id="forgotBtn" class="btn btn-premium ripple">Reset Password</button>
-      </form>
-      <div class="switch-link">
-        Remembered your password? <a onclick="switchSection('loginSection')">Log In</a>
+      <div class="auth-trust-row">
+        <span><i class="status-led online"></i>PC dashboard</span>
+        <span><i class="status-led"></i>Mobile logger</span>
+        <span><i class="status-led"></i>Excel exports</span>
       </div>
-    </div>
+    </section>
 
-  </div>
+    <section class="login-container glass-card" aria-live="polite">
+      <div class="auth-card-header">
+        <div class="auth-icon">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10V8a5 5 0 0 1 10 0v2M6 10h12v10H6zM12 14v2"/></svg>
+        </div>
+        <div>
+          <p class="section-index">Authorized users only</p>
+          <h2 id="pageTitle">Sign in</h2>
+          <p class="subtitle" id="pageSubtitle">Access the correct workspace for this port.</p>
+        </div>
+      </div>
+
+      <div id="messageBox" class="message-box" role="alert"></div>
+
+      <div id="loginSection" class="form-section active">
+        <form id="loginForm">
+          <div class="form-group">
+            <label for="loginEmail">Email address</label>
+            <input type="email" id="loginEmail" class="glass-input" placeholder="user@company.com" autocomplete="username" required>
+          </div>
+          <div class="form-group">
+            <div class="label-row">
+              <label for="loginPassword">Password</label>
+              <button type="button" class="inline-link" onclick="switchSection('forgotSection')">Forgot password?</button>
+            </div>
+            <input type="password" id="loginPassword" class="glass-input" placeholder="Enter your password" autocomplete="current-password" required>
+          </div>
+          <button type="submit" id="loginBtn" class="btn btn-premium auth-submit">
+            <span>Sign in securely</span>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M14 7l5 5-5 5"/></svg>
+          </button>
+        </form>
+        <div class="switch-link">New user? <button type="button" onclick="switchSection('registerSection')">Create an account</button></div>
+      </div>
+
+      <div id="registerSection" class="form-section">
+        <form id="registerForm">
+          <div class="form-group">
+            <label for="regName">Full name</label>
+            <input type="text" id="regName" class="glass-input" placeholder="Your name" autocomplete="name" required>
+          </div>
+          <div class="form-group">
+            <label for="regEmail">Email address</label>
+            <input type="email" id="regEmail" class="glass-input" placeholder="user@company.com" autocomplete="email" required>
+          </div>
+          <div class="form-group">
+            <label for="regPassword">Password</label>
+            <input type="password" id="regPassword" class="glass-input" placeholder="Minimum 6 characters" autocomplete="new-password" required>
+          </div>
+          <button type="submit" id="regBtn" class="btn btn-premium auth-submit">
+            <span>Create account</span>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+          </button>
+        </form>
+        <div class="switch-link">Already registered? <button type="button" onclick="switchSection('loginSection')">Return to sign in</button></div>
+      </div>
+
+      <div id="forgotSection" class="form-section">
+        <form id="forgotForm">
+          <div class="form-group">
+            <label for="forgotEmail">Registered email</label>
+            <input type="email" id="forgotEmail" class="glass-input" placeholder="user@company.com" autocomplete="username" required>
+          </div>
+          <div class="form-group">
+            <label for="forgotNewPassword">New password</label>
+            <input type="password" id="forgotNewPassword" class="glass-input" placeholder="Create a new password" autocomplete="new-password" required>
+          </div>
+          <button type="submit" id="forgotBtn" class="btn btn-premium auth-submit">
+            <span>Update password</span>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 1-2.3-5.7M20 4v7h-7"/></svg>
+          </button>
+        </form>
+        <div class="switch-link">Remembered it? <button type="button" onclick="switchSection('loginSection')">Return to sign in</button></div>
+      </div>
+
+      <p class="auth-footnote">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 5 6v5c0 4.6 2.9 8.3 7 10 4.1-1.7 7-5.4 7-10V6l-7-3Z"/></svg>
+        Credentials are transmitted only to the configured PC server.
+      </p>
+    </section>
+  </main>
 
   <script>
     const messageBox = document.getElementById('messageBox');
 
-    // Auto-redirect if already logged in
     window.onload = () => {
       const token = sessionStorage.getItem('ad_session_token');
       if (token) {
@@ -200,7 +151,7 @@
     };
 
     function showMessage(msg, isError = true) {
-      messageBox.textContent = (isError ? '❌ ' : '✅ ') + msg;
+      messageBox.textContent = (isError ? 'Error: ' : 'Success: ') + msg;
       messageBox.className = 'message-box ' + (isError ? 'error' : 'success');
       messageBox.style.display = 'block';
     }
@@ -214,23 +165,23 @@
       const subtitle = document.getElementById('pageSubtitle');
 
       if (sectionId === 'loginSection') {
-        title.textContent = 'IT Dashboard Access';
-        subtitle.textContent = 'Secure Login';
+        title.textContent = 'Sign in';
+        subtitle.textContent = 'Access the correct workspace for this port.';
       } else if (sectionId === 'registerSection') {
-        title.textContent = 'Create Account';
-        subtitle.textContent = 'Register for Dashboard Access';
+        title.textContent = 'Create account';
+        subtitle.textContent = 'Register a user for mobile or dashboard access.';
       } else if (sectionId === 'forgotSection') {
-        title.textContent = 'Reset Password';
-        subtitle.textContent = 'Set a new password for your account';
+        title.textContent = 'Reset password';
+        subtitle.textContent = 'Choose a new password for an existing account.';
       }
     }
 
-    // Login Form Submit
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const btn = document.getElementById('loginBtn');
+      const original = btn.innerHTML;
       btn.disabled = true;
-      btn.textContent = 'Authenticating...';
+      btn.textContent = 'Authenticating…';
       messageBox.style.display = 'none';
 
       const payload = {
@@ -253,22 +204,22 @@
             window.location.href = `/?token=${encodeURIComponent(result.token)}`;
           }
         } else {
-          showMessage(result.error || 'Access Denied: Invalid credentials.');
+          showMessage(result.error || 'Access denied. Check your credentials.');
         }
       } catch (err) {
-        showMessage('Connection failed. Verify server status.');
+        showMessage('Connection failed. Verify that the PC server is running.');
       } finally {
         btn.disabled = false;
-        btn.textContent = 'Log In';
+        btn.innerHTML = original;
       }
     });
 
-    // Register Form Submit
     document.getElementById('registerForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const btn = document.getElementById('regBtn');
+      const original = btn.innerHTML;
       btn.disabled = true;
-      btn.textContent = 'Registering...';
+      btn.textContent = 'Creating account…';
       messageBox.style.display = 'none';
 
       const payload = {
@@ -285,25 +236,25 @@
         });
         const result = await response.json();
         if (response.ok && result.success) {
-          showMessage('Registration successful! You can now log in.', false);
-          setTimeout(() => switchSection('loginSection'), 2000);
+          showMessage('Registration successful. You can now sign in.', false);
+          setTimeout(() => switchSection('loginSection'), 1600);
         } else {
           showMessage(result.error || 'Registration failed.');
         }
       } catch (err) {
-        showMessage('Connection failed. Verify server status.');
+        showMessage('Connection failed. Verify that the PC server is running.');
       } finally {
         btn.disabled = false;
-        btn.textContent = 'Register';
+        btn.innerHTML = original;
       }
     });
 
-    // Forgot Password Form Submit
     document.getElementById('forgotForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const btn = document.getElementById('forgotBtn');
+      const original = btn.innerHTML;
       btn.disabled = true;
-      btn.textContent = 'Updating...';
+      btn.textContent = 'Updating password…';
       messageBox.style.display = 'none';
 
       const payload = {
@@ -319,19 +270,18 @@
         });
         const result = await response.json();
         if (response.ok && result.success) {
-          showMessage('Password updated successfully! Please log in.', false);
-          setTimeout(() => switchSection('loginSection'), 2000);
+          showMessage('Password updated. Please sign in.', false);
+          setTimeout(() => switchSection('loginSection'), 1600);
         } else {
-          showMessage(result.error || 'Failed to update password.');
+          showMessage(result.error || 'Password update failed.');
         }
       } catch (err) {
-        showMessage('Connection failed. Verify server status.');
+        showMessage('Connection failed. Verify that the PC server is running.');
       } finally {
         btn.disabled = false;
-        btn.textContent = 'Reset Password';
+        btn.innerHTML = original;
       }
     });
   </script>
 </body>
-
 </html>
